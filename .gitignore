@@ -1,0 +1,13 @@
+# Zip files containing NuGet packages
+*.zip
+
+# Extracted dependency folders
+bcl_async/
+npgsql/
+npgsql3/
+tasks_ext/
+tasks_ext_430/
+unsafe/
+
+# Setup scripts with credentials
+setup-supabase.ps1

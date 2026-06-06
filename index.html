@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speed Logística - Entregas Rápidas e Inteligentes para seu Comércio</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS & JS for Real Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="dark-theme">
+  <!-- Loader -->
+  <div id="loader" class="loader-container">
+    <div class="loader">
+      <div class="loader-ring"></div>
+      <i data-lucide="zap" class="loader-icon"></i>
+    </div>
+  </div>
+
+  <!-- App Container -->
+  <div id="app">
+    <!-- LANDING PAGE & LOGIN PORTAL -->
+    <main id="view-landing" class="view-section active">
+      <!-- Navbar -->
+      <nav class="navbar">
+        <div class="nav-container">
+          <div class="logo">
+            <img src="logo.jpg" class="logo-image" alt="Logo Speed">
+            <span class="logo-text">SPEED<span class="cyan-text">.</span></span>
+          </div>
+          <div class="nav-badges">
+            <span class="badge badge-success"><span class="dot"></span> 942 Motoboys Ativos</span>
+          </div>
+        </div>
+      </nav>
+
+      <div class="hero-container">
+        <!-- Hero Left: Content -->
+        <div class="hero-content">
+          <span class="hero-tagline"><i data-lucide="shield-check" class="inline-icon"></i> Logística Urbana Premium</span>
+          <h1 class="hero-title">O motoboy ideal para a sua lancheria, a <span class="gradient-text">um clique de distância.</span></h1>
+          <p class="hero-subtitle">Fornecemos entregadores sob demanda e fixos para o seu comércio. Gerencie faturamento, acompanhe taxas em tempo real e impulsione suas vendas com a Speed.</p>
+          
+          <div class="hero-stats">
+            <div class="stat-card">
+              <span class="stat-num" id="stat-deliveries">12.4K</span>
+              <span class="stat-label">Entregas hoje</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">14 min</span>
+              <span class="stat-label">Tempo médio</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">99.7%</span>
+              <span class="stat-label">Taxa de sucesso</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Right: Interactive Login Portal -->
+        <div class="hero-login-wrapper">
+          <div class="login-card">
+            <div class="login-header">
+              <h2>Acesse o Portal</h2>
+              <p>Selecione seu perfil de acesso rápido para entrar</p>
+            </div>
+
+            <!-- Profile Selector Tabs -->
+            <div class="login-tabs">
+              <button class="tab-btn active" data-tab="owner" onclick="switchLoginTab('owner')">
+                <i data-lucide="trending-up"></i> Acesso Administrativo
+              </button>
+              <button class="tab-btn" data-tab="client" onclick="switchLoginTab('client')">
+                <i data-lucide="store"></i> Área do Parceiro
+              </button>
+              <button class="tab-btn" data-tab="order" onclick="switchLoginTab('order')">
+                <i data-lucide="navigation"></i> Solicitar Entrega
+              </button>
+            </div>
+
+            <!-- Login Form (Dynamic Text and Fields based on select) -->
+            <form id="login-form" onsubmit="handleLogin(event)">
+              <div class="form-group">
+                <label id="username-label" for="username">E-mail do Administrador</label>
+                <div class="input-wrapper">
+                  <i data-lucide="mail" class="input-icon"></i>
+                  <input type="email" id="username" required placeholder="admin@speedlog.com.br">
+                </div>
+              </div>
+
+              <div class="form-group" id="password-group">
+                <div class="label-row">
+                  <label for="password">Senha</label>
+                  <a href="#" class="forgot-password">Esqueceu?</a>
+                </div>
+                <div class="input-wrapper">
+                  <i data-lucide="lock" class="input-icon"></i>
+                  <input type="password" id="password" required placeholder="••••••••">
+                </div>
+              </div>
+
+              <!-- Extra options depending on login type -->
+              <div class="form-options">
+                <label class="remember-me">
+                  <input type="checkbox" checked> Lembrar meu acesso
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                <span>Entrar no Painel</span> <i data-lucide="arrow-right"></i>
+              </button>
+
+              <button type="button" class="btn btn-secondary btn-block mt-3" onclick="loginDemo()">
+                <i data-lucide="sparkles" class="yellow-text"></i> <span>Acesso Rápido Demo</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <footer class="landing-footer">
+        <p>© 2026 Speed Logística Express S.A. Todos os direitos reservados. Projetado para máxima velocidade.</p>
+      </footer>
+    </main>
+
+    <!-- DASHBOARD VIEW CONTAINER -->
+    <div id="view-dashboard" class="view-section dashboard-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <img src="logo.jpg" class="logo-image" alt="Logo Speed">
+            <span class="logo-text">SPEED<span class="cyan-text">.</span></span>
+          </div>
+          <span class="sidebar-role" id="display-role">Painel do Dono</span>
+        </div>
+
+        <nav class="sidebar-nav">
+          <!-- Navigation elements are injected dynamically or hidden based on user role -->
+          <div class="nav-group" id="nav-owner-group">
+            <button class="nav-item active" data-tab="owner-overview" onclick="switchDashboardTab('owner-overview')">
+              <i data-lucide="layout-dashboard"></i> Visão Geral
+            </button>
+            <button class="nav-item" data-tab="owner-tracking-map" onclick="switchDashboardTab('owner-tracking-map')">
+              <i data-lucide="map"></i> Acompanhar Entregas
+            </button>
+            <button class="nav-item" data-tab="owner-fleet" onclick="switchDashboardTab('owner-fleet')">
+              <i data-lucide="bike"></i> Frota & Motoboys
+            </button>
+            <button class="nav-item" data-tab="owner-financials" onclick="switchDashboardTab('owner-financials')">
+              <i data-lucide="dollar-sign"></i> Financeiro
+            </button>
+          </div>
+
+          <div class="nav-group" id="nav-client-group">
+            <button class="nav-item active" data-tab="client-overview" onclick="switchDashboardTab('client-overview')">
+              <i data-lucide="home"></i> Meu Comércio
+            </button>
+            <button class="nav-item" data-tab="client-history" onclick="switchDashboardTab('client-history')">
+              <i data-lucide="list-ordered"></i> Histórico Entregas
+            </button>
+          </div>
+
+          <div class="nav-group" id="nav-order-group">
+            <button class="nav-item active" data-tab="order-request" onclick="switchDashboardTab('order-request')">
+              <i data-lucide="plus-circle"></i> Nova Solicitação
+            </button>
+            <button class="nav-item" data-tab="order-tracking" id="nav-tracking-tab" onclick="switchDashboardTab('order-tracking')" disabled>
+              <i data-lucide="map-pin"></i> Rastrear Entrega <span class="pulse-dot hidden"></span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="user-profile">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="User Avatar" class="avatar" id="user-avatar">
+            <div class="user-info">
+              <h4 id="user-display-name">Gustavo Souza</h4>
+              <p id="user-display-sub">CEO & Dono</p>
+            </div>
+          </div>
+          <button class="btn-logout" onclick="handleLogout()">
+            <i data-lucide="log-out"></i> Sair da Conta
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Panel Area -->
+      <main class="dashboard-main">
+        <!-- Topbar -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <h2 id="dashboard-title">Painel de Logística</h2>
+            <p id="dashboard-subtitle" class="text-muted">Acompanhe a atividade em tempo real de toda a empresa.</p>
+          </div>
+          <div class="topbar-right">
+            <div class="current-time">
+              <i data-lucide="calendar"></i>
+              <span id="current-date-span">Sáb, 6 de Junho de 2026</span>
+            </div>
+            <div class="notification-bell">
+              <i data-lucide="bell"></i>
+              <span class="bell-badge">3</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dynamic Content Tabs -->
+        <div class="dashboard-content">
+          
+          <!-- ================= DONO TABS ================= -->
+          <!-- 1. Owner Overview -->
+          <div id="tab-owner-overview" class="dashboard-tab-content active">
+            <!-- Grid of Cards -->
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Faturamento Mensal</span>
+                  <i data-lucide="dollar-sign" class="text-yellow"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>R$ 84.290,00</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> +12% em relação ao mês anterior</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Motoboys na Rua</span>
+                  <i data-lucide="bike" class="text-blue"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>152 / 180</h3>
+                  <p class="growth-text neutral"><span class="pulse-dot inline"></span> Alta demanda no momento</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Entregas Concluídas (Hoje)</span>
+                  <i data-lucide="check-circle" class="text-green"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>1.842</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> +4.2% vs ontem</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Ticket Médio por Corrida</span>
+                  <i data-lucide="credit-card" class="text-purple"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>R$ 14,80</h3>
+                  <p class="growth-text down"><i data-lucide="trending-down"></i> -1.5% devido a rota reduzida</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts & Lists Grid -->
+            <div class="dashboard-grid mt-4">
+              <!-- Performance Chart -->
+              <div class="card chart-card">
+                <div class="card-header">
+                  <h3>Desempenho Geral de Entregas</h3>
+                  <span class="badge">Tempo Real</span>
+                </div>
+                <div class="card-body">
+                  <div class="chart-container">
+                    <canvas id="ownerOverviewChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Top Client Commerces -->
+              <div class="card">
+                <div class="card-header">
+                  <h3>Clientes Comerciais (Mais Ativos)</h3>
+                  <a href="#" class="view-all-link">Ver todos</a>
+                </div>
+                <div class="card-body">
+                  <div class="list-container">
+                    <div class="list-item">
+                      <div class="item-info">
+                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
+                        <div>
+                          <h4>Burger do Chef & Cia</h4>
+                          <p class="text-muted">142 entregas completadas essa semana</p>
+                        </div>
+                      </div>
+                      <div class="item-action text-right">
+                        <strong>R$ 2.100,50</strong>
+                        <span class="badge badge-success mt-1">Ótimo</span>
+                      </div>
+                    </div>
+                    <div class="list-item">
+                      <div class="item-info">
+                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
+                        <div>
+                          <h4>Pizzaria Bella Italia</h4>
+                          <p class="text-muted">98 entregas completadas essa semana</p>
+                        </div>
+                      </div>
+                      <div class="item-action text-right">
+                        <strong>R$ 1.640,00</strong>
+                        <span class="badge badge-success mt-1">Ativo</span>
+                      </div>
+                    </div>
+                    <div class="list-item">
+                      <div class="item-info">
+                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
+                        <div>
+                          <h4>Subway Grill Express</h4>
+                          <p class="text-muted">87 entregas completadas essa semana</p>
+                        </div>
+                      </div>
+                      <div class="item-action text-right">
+                        <strong>R$ 1.280,00</strong>
+                        <span class="badge badge-success mt-1">Ativo</span>
+                      </div>
+                    </div>
+                    <div class="list-item">
+                      <div class="item-info">
+                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
+                        <div>
+                          <h4>Cantina di Lucca</h4>
+                          <p class="text-muted">45 entregas completadas essa semana</p>
+                        </div>
+                      </div>
+                      <div class="item-action text-right">
+                        <strong>R$ 670,20</strong>
+                        <span class="badge badge-warning mt-1">Moderado</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 1b. Owner Tracking Map -->
+          <div id="tab-owner-tracking-map" class="dashboard-tab-content">
+            <!-- Real Map Monitor -->
+            <div class="card map-monitor-card">
+              <div class="card-header flex-row">
+                <div>
+                  <h3>Mapa de Monitoramento da Frota</h3>
+                  <p class="text-muted">Acompanhe a localização em tempo real de todos os entregadores em campo.</p>
+                </div>
+                <span class="badge badge-success"><span class="dot"></span> Monitoramento GPS</span>
+              </div>
+              <div class="card-body p-0" style="position: relative;">
+                <div id="owner-fleet-map" style="height: 450px; width: 100%; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); z-index: 1;"></div>
+              </div>
+            </div>
+
+            <!-- Pending Teles/Deliveries (Dispatch System) -->
+            <div class="mt-4">
+              <div class="section-header" style="margin-bottom: 16px;">
+                <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Entregas Pendentes (Teles Disponíveis)</h3>
+                <p class="text-muted">Selecione um motoboy disponível e envie a tele para ele iniciar a entrega.</p>
+              </div>
+              <div class="pending-grid" id="pending-deliveries-container">
+                <!-- Rendered dynamically via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Owner Fleet -->
+          <div id="tab-owner-fleet" class="dashboard-tab-content">
+            <div class="card">
+              <div class="card-header flex-row">
+                <div>
+                  <h3>Lista de Motoboys em Campo</h3>
+                  <p class="text-muted">Controle de motoristas ativos, status de entrega e bateria/combustível.</p>
+                </div>
+                <button class="btn btn-primary btn-sm"><i data-lucide="plus"></i> Cadastrar Entregador</button>
+              </div>
+              <div class="card-body no-padding">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Nome / ID</th>
+                        <th>Veículo / Placa</th>
+                        <th>Status Atual</th>
+                        <th>Corrida Atual</th>
+                        <th>Bateria/Combustível</th>
+                        <th>Classificação</th>
+                      </tr>
+                    </thead>
+                    <tbody id="owner-fleet-table-body">
+                      <!-- Rendered by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Owner Financials -->
+          <div id="tab-owner-financials" class="dashboard-tab-content">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Receita Total Bruta</span>
+                  <i data-lucide="wallet" class="text-yellow"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>R$ 115.420,00</h3>
+                  <p class="text-muted">Faturamento acumulado bruto</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Repasse Motoboys</span>
+                  <i data-lucide="arrow-right-left" class="text-blue"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>R$ 82.340,00</h3>
+                  <p class="text-muted">Repassado quinzenalmente</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Margem Operacional</span>
+                  <i data-lucide="percent" class="text-green"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>28.6%</h3>
+                  <p class="text-muted">Lucro líquido da administradora</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="dashboard-grid mt-4">
+              <!-- Revenue split charts -->
+              <div class="card">
+                <div class="card-header">
+                  <h3>Divisão Financeira Semanal</h3>
+                </div>
+                <div class="card-body">
+                  <div class="chart-container" style="max-height: 250px;">
+                    <canvas id="ownerFinancialChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Invoicing table -->
+              <div class="card">
+                <div class="card-header">
+                  <h3>Faturas de Comércios Pendentes</h3>
+                </div>
+                <div class="card-body no-padding">
+                  <div class="table-responsive">
+                    <table class="table">
+                      <thead>
+                        <tr>
+                          <th>Estabelecimento</th>
+                          <th>Valor Fatura</th>
+                          <th>Data Venc.</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>Burger do Chef & Cia</strong></td>
+                          <td>R$ 1.420,00</td>
+                          <td>10/06/2026</td>
+                          <td><span class="status-indicator status-progress">Fechando</span></td>
+                        </tr>
+                        <tr>
+                          <td><strong>Pizzaria Bella Italia</strong></td>
+                          <td>R$ 980,00</td>
+                          <td>10/06/2026</td>
+                          <td><span class="status-indicator status-progress">Fechando</span></td>
+                        </tr>
+                        <tr>
+                          <td><strong>Subway Grill Express</strong></td>
+                          <td>R$ 870,50</td>
+                          <td>10/06/2026</td>
+                          <td><span class="status-indicator status-progress">Fechando</span></td>
+                        </tr>
+                        <tr>
+                          <td><strong>Japa House Sushi</strong></td>
+                          <td>R$ 412,00</td>
+                          <td>10/06/2026</td>
+                          <td><span class="status-indicator status-success">Pago</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ================= CLIENTE TABS ================= -->
+          <!-- 1. Client Overview -->
+          <div id="tab-client-overview" class="dashboard-tab-content">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Entregas Despachadas</span>
+                  <i data-lucide="shopping-bag" class="text-yellow"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="client-total-orders">284</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> +8% este mês</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Tempo de Entrega Médio</span>
+                  <i data-lucide="clock" class="text-blue"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>16.4 min</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> 1.2 min mais rápido que a média geral</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Custo Total em Logística</span>
+                  <i data-lucide="dollar-sign" class="text-green"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="client-total-cost">R$ 4.203,20</h3>
+                  <p class="text-muted">Cobrado quinzenalmente no boleto</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Pontuação Média de Clientes</span>
+                  <i data-lucide="star" class="text-purple"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>4.92 / 5.0</h3>
+                  <p class="growth-text up"><i data-lucide="heart" class="inline-icon"></i> Feedback excelente</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Client charts and metrics -->
+            <div class="dashboard-grid mt-4">
+              <div class="card chart-card">
+                <div class="card-header">
+                  <h3>Tempo Estimado vs Tempo Real</h3>
+                  <span class="badge">Últimos 7 dias</span>
+                </div>
+                <div class="card-body">
+                  <div class="chart-container">
+                    <canvas id="clientOverviewChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lancheria quick stats & active promos -->
+              <div class="card">
+                <div class="card-header">
+                  <h3>Desempenho da Lancheria</h3>
+                </div>
+                <div class="card-body">
+                  <div class="perf-bar-group">
+                    <div class="perf-bar-label">
+                      <span>Eficiência de Preparo Interno</span>
+                      <strong>94%</strong>
+                    </div>
+                    <div class="perf-bar">
+                      <div class="perf-bar-fill bg-green" style="width: 94%"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="perf-bar-group mt-3">
+                    <div class="perf-bar-label">
+                      <span>Pontualidade dos Motoboys</span>
+                      <strong>97.5%</strong>
+                    </div>
+                    <div class="perf-bar">
+                      <div class="perf-bar-fill bg-yellow" style="width: 97.5%"></div>
+                    </div>
+                  </div>
+
+                  <div class="perf-bar-group mt-3">
+                    <div class="perf-bar-label">
+                      <span>Avaliações de Embalagem</span>
+                      <strong>89%</strong>
+                    </div>
+                    <div class="perf-bar">
+                      <div class="perf-bar-fill bg-blue" style="width: 89%"></div>
+                    </div>
+                  </div>
+
+                  <div class="promo-box mt-4">
+                    <div class="promo-box-title">
+                      <i data-lucide="award" class="text-yellow"></i>
+                      <h4>Selo Speed Premium</h4>
+                    </div>
+                    <p class="text-muted mt-1">Parabéns! Seu comércio obteve selo de excelência em entregas devido ao baixo tempo de preparo de embalagens e tempo de motoqueiro aguardando.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Client History -->
+          <div id="tab-client-history" class="dashboard-tab-content">
+            <div class="card">
+              <div class="card-header">
+                <h3>Histórico Completo de Entregas</h3>
+                <p class="text-muted">Verifique as entregas finalizadas por motoboy e taxas cobradas.</p>
+              </div>
+              <div class="card-body no-padding">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Código Pedido</th>
+                        <th>Destinatário / Endereço</th>
+                        <th>Motoboy</th>
+                        <th>Distância</th>
+                        <th>Taxa Corrida</th>
+                        <th>Data / Hora</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="client-history-table-body">
+                      <!-- Rendered dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ================= SOLICITAR TABS ================= -->
+          <!-- 1. Request Motoboy -->
+          <div id="tab-order-request" class="dashboard-tab-content">
+            <div class="request-layout">
+              <!-- Left side: Form -->
+              <div class="card request-form-card">
+                <div class="card-header">
+                  <h3>Chamar Entregador Express</h3>
+                  <p class="text-muted">Chame o motoboy livre mais próximo para buscar e entregar sua carga.</p>
+                </div>
+                <div class="card-body">
+                  <form id="order-request-form" onsubmit="submitDeliveryRequest(event)">
+                    <div class="form-row">
+                      <div class="form-group flex-1">
+                        <label for="pickup-address"><i data-lucide="store" class="inline-icon text-yellow"></i> Ponto de Retirada (Comércio)</label>
+                        <div class="input-wrapper">
+                          <input type="text" id="pickup-address" readonly value="Burger do Chef - Av. Central, 120">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                      <label for="delivery-address"><i data-lucide="map-pin" class="inline-icon text-red"></i> Destino da Entrega</label>
+                      <div class="input-wrapper">
+                        <i data-lucide="search" class="input-icon"></i>
+                        <input type="text" id="delivery-address" required placeholder="Digite o endereço completo do cliente" oninput="calculateEstimate()">
+                      </div>
+                    </div>
+
+                    <div class="form-row mt-3">
+                      <div class="form-group flex-1">
+                        <label for="cargo-type">Tipo de Mercadoria</label>
+                        <select id="cargo-type">
+                          <option value="lanche">🍔 Lanches e Bebidas</option>
+                          <option value="pizza">🍕 Pizza Gigante / Família</option>
+                          <option value="doce">🍩 Sobremesas / Doces</option>
+                          <option value="documentos">📄 Papelada / Documentos</option>
+                        </select>
+                      </div>
+                      <div class="form-group flex-1">
+                        <label for="payment-method">Forma de Pagamento (Cliente)</label>
+                        <select id="payment-method">
+                          <option value="pix">PIX (Já Pago pelo App)</option>
+                          <option value="cartao-maquininha">Levar Maquininha (Cartão)</option>
+                          <option value="dinheiro">Dinheiro (Troco Necessário)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="form-group mt-3" id="change-group" style="display: none;">
+                      <label for="change-amount">Troco para quanto?</label>
+                      <div class="input-wrapper">
+                        <span class="input-prefix">R$</span>
+                        <input type="number" id="change-amount" placeholder="Ex: 50,00" min="1">
+                      </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                      <label for="order-notes">Observações do Pedido</label>
+                      <textarea id="order-notes" rows="3" placeholder="Ex: Apartamento 302, Bloco B. Ligar quando chegar no portão."></textarea>
+                    </div>
+
+                    <div class="estimate-box mt-4 hidden" id="estimate-box">
+                      <div class="estimate-detail">
+                        <span>Distância Calculada:</span>
+                        <strong id="est-distance">-- km</strong>
+                      </div>
+                      <div class="estimate-detail">
+                        <span>Tempo de Deslocamento:</span>
+                        <strong id="est-time">-- min</strong>
+                      </div>
+                      <div class="estimate-price-row mt-2 pt-2 border-top">
+                        <span>Taxa de Entrega:</span>
+                        <strong class="text-yellow" id="est-price">R$ 0,00</strong>
+                      </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block mt-4">
+                      <i data-lucide="zap"></i> Confirmar e Solicitar Motoboy
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Right side: Quick Tips / Dynamic Info -->
+              <div class="request-info-sidebar">
+                <div class="card bg-gradient-yellow">
+                  <div class="card-body text-black">
+                    <h3>Atendimento Speed</h3>
+                    <p class="mt-2">Todos os envios contam com seguro de carga integrado de até R$ 500,00. Nossos motoboys utilizam baús térmicos higienizados para garantir a qualidade da comida.</p>
+                    <div class="card-decor-icon"><i data-lucide="shield-check"></i></div>
+                  </div>
+                </div>
+
+                <div class="card mt-3">
+                  <div class="card-header">
+                    <h3>Tarifas de Logística</h3>
+                  </div>
+                  <div class="card-body">
+                    <ul class="tariffs-list">
+                      <li>
+                        <span>Distância até 2km:</span>
+                        <strong>R$ 7,90 (Fixo)</strong>
+                      </li>
+                      <li>
+                        <span>Km Adicional:</span>
+                        <strong>R$ 1,50 / km</strong>
+                      </li>
+                      <li>
+                        <span>Taxa de Chuva/Horário de Pico:</span>
+                        <strong class="text-yellow">+ R$ 3,00</strong>
+                      </li>
+                    </ul>
+                    <div class="status-indicator status-success mt-3"><i data-lucide="check-circle" class="inline-icon"></i> Tarifa normal ativa no momento</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Order Tracking -->
+          <div id="tab-order-tracking" class="dashboard-tab-content">
+            <div class="tracking-layout">
+              <!-- Left side: Status Timeline & Courier Info -->
+              <div class="card tracking-status-card">
+                <div class="card-header flex-row">
+                  <div>
+                    <h3>Status do Pedido: <span class="text-yellow" id="tracker-order-id">#SPD-8942</span></h3>
+                    <p class="text-muted">Acompanhe as fases da entrega expressa em tempo real.</p>
+                  </div>
+                  <span class="status-badge status-progress" id="tracker-badge-status">Buscando Entregador</span>
+                </div>
+                <div class="card-body">
+                  <!-- Stepper Timeline -->
+                  <div class="stepper-timeline">
+                    <div class="step-node active" id="step-1">
+                      <div class="step-icon"><i data-lucide="clipboard-check"></i></div>
+                      <div class="step-detail">
+                        <h4>Pedido Confirmado</h4>
+                        <p class="text-muted" id="step-1-time">Aguardando busca de motoboys...</p>
+                      </div>
+                    </div>
+                    <div class="step-node" id="step-2">
+                      <div class="step-icon"><i data-lucide="user-check"></i></div>
+                      <div class="step-detail">
+                        <h4>Entregador a Caminho da Coleta</h4>
+                        <p class="text-muted" id="step-2-time">--:--</p>
+                      </div>
+                    </div>
+                    <div class="step-node" id="step-3">
+                      <div class="step-icon"><i data-lucide="package"></i></div>
+                      <div class="step-detail">
+                        <h4>Coleta Efetuada (A caminho do destino)</h4>
+                        <p class="text-muted" id="step-3-time">--:--</p>
+                      </div>
+                    </div>
+                    <div class="step-node" id="step-4">
+                      <div class="step-icon"><i data-lucide="check-circle"></i></div>
+                      <div class="step-detail">
+                        <h4>Entrega Concluída com Sucesso</h4>
+                        <p class="text-muted" id="step-4-time">--:--</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Courier profile box -->
+                  <div class="courier-card-tracker mt-4 hidden" id="tracker-courier-box">
+                    <div class="courier-avatar-wrapper">
+                      <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=256&auto=format&fit=crop" id="tracker-courier-img" alt="Motoboy Avatar">
+                    </div>
+                    <div class="courier-info-tracker">
+                      <h4 id="tracker-courier-name">Carlos Oliveira</h4>
+                      <p class="text-muted" id="tracker-courier-vehicle">Honda CG 160 Fan - Placa: ABC-1234</p>
+                      <div class="courier-rating">
+                        <i data-lucide="star" class="fill-yellow text-yellow"></i> 4.98 (242 entregas)
+                      </div>
+                    </div>
+                    <div class="courier-contact">
+                      <a href="tel:555" class="btn btn-icon-round bg-dark"><i data-lucide="phone"></i></a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right side: Simulated Map Tracker -->
+              <div class="card map-tracker-card">
+                <div class="card-header">
+                  <h3>Simulador de Rastreamento Satélite</h3>
+                  <span class="status-indicator status-success"><i data-lucide="navigation"></i> GPS Ativo</span>
+                </div>
+                <div class="card-body p-0 relative">
+                  <!-- Simulated Map View -->
+                  <div class="simulated-map" id="sim-map">
+                    <!-- Map background elements (fake streets, buildings) -->
+                    <div class="map-grid-bg"></div>
+                    <div class="map-street street-h" style="top: 25%;"></div>
+                    <div class="map-street street-h" style="top: 70%;"></div>
+                    <div class="map-street street-v" style="left: 30%;"></div>
+                    <div class="map-street street-v" style="left: 75%;"></div>
+                    
+                    <!-- Map Pins -->
+                    <div class="map-pin pin-pickup" style="top: 70%; left: 30%;" title="Sua Lancheria">
+                      <i data-lucide="store"></i>
+                      <span class="pin-tooltip">Retirada</span>
+                    </div>
+
+                    <div class="map-pin pin-delivery" style="top: 25%; left: 75%;" title="Destino do Cliente">
+                      <i data-lucide="map-pin"></i>
+                      <span class="pin-tooltip">Destino</span>
+                    </div>
+
+                    <!-- Motoboy Icon on Map (moving) -->
+                    <div class="map-moto-avatar" id="map-moto" style="top: 70%; left: 30%;">
+                      <i data-lucide="bike" class="moto-icon"></i>
+                      <div class="moto-wave"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
