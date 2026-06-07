@@ -1548,6 +1548,27 @@ select {
 
 
 /* ================= RESPONSIVE DESIGN ================= */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+}
+.sidebar-overlay.active {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: inline-flex !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .hero-container {
     grid-template-columns: 1fr;
@@ -1583,45 +1604,55 @@ select {
   }
   
   .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 16px;
-    gap: 16px;
+    position: fixed;
+    top: 0;
+    left: -280px; /* Hidden drawer by default */
+    width: 280px;
+    height: 100vh;
+    z-index: 1000;
+    transition: left var(--transition-normal);
+    border-right: 1px solid var(--border-color);
+    border-bottom: none;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background-color: var(--bg-sidebar);
+    padding: 24px;
+  }
+  
+  .sidebar.open {
+    left: 0; /* Slide in drawer */
   }
   
   .sidebar-header {
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .sidebar-role {
-    margin-top: 0;
+    margin-bottom: 32px;
   }
   
   .sidebar-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    gap: 12px;
+    flex-direction: column;
+    overflow-x: visible;
+    gap: 24px;
   }
   
   .nav-group {
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
   }
   
   .nav-item {
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    width: auto;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    white-space: normal;
+    width: 100%;
   }
   
   .sidebar-footer {
-    display: none; /* Hide footer or move to topbar */
+    display: flex; /* Show profile & logout button in mobile drawer */
+    border-top: 1px solid var(--border-color);
+    padding-top: 24px;
+    flex-direction: column;
+    gap: 16px;
   }
 
   .topbar {
@@ -1642,7 +1673,7 @@ select {
   }
 
   .dashboard-content {
-    padding: 20px;
+    padding: 16px;
   }
   
   .hero-title {

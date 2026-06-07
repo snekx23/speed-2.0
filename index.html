@@ -200,11 +200,15 @@
 
       <!-- Main Panel Area -->
       <main class="dashboard-main">
-        <!-- Topbar -->
         <header class="topbar">
-          <div class="topbar-left">
-            <h2 id="dashboard-title">Painel de Logística</h2>
-            <p id="dashboard-subtitle" class="text-muted">Acompanhe a atividade em tempo real de toda a empresa.</p>
+          <div class="topbar-left" style="display: flex; align-items: center; gap: 12px;">
+            <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" style="display: none; background: transparent; border: 1px solid var(--border-color); color: var(--color-text); padding: 8px 10px; border-radius: var(--border-radius-sm); cursor: pointer; align-items: center; justify-content: center;">
+              <i data-lucide="menu"></i>
+            </button>
+            <div>
+              <h2 id="dashboard-title">Painel de Logística</h2>
+              <p id="dashboard-subtitle" class="text-muted">Acompanhe a atividade em tempo real de toda a empresa.</p>
+            </div>
           </div>
           <div class="topbar-right">
             <div class="current-time">

@@ -138,6 +138,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // Sidebar mobile drawer logic
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  const sidebar = document.querySelector('.sidebar');
+  let overlay = document.getElementById('sidebar-overlay');
+  
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'sidebar-overlay';
+    overlay.className = 'sidebar-overlay';
+    document.body.appendChild(overlay);
+  }
+  
+  function openMobileSidebar() {
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
+  }
+  
+  function closeMobileSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+  }
+  
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', openMobileSidebar);
+  }
+  if (overlay) {
+    overlay.addEventListener('click', closeMobileSidebar);
+  }
+  
+  // Close sidebar on clicking navigation items on mobile
+  document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      }
+    });
+  });
+
+  // Close sidebar on clicking logout on mobile
+  const logoutBtn = document.querySelector('.btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      }
+    });
+  }
 });
 
 // Profile switching inside Landing Login Card
