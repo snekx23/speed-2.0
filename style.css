@@ -1563,9 +1563,22 @@ select {
   display: block;
 }
 
+.topbar-logo {
+  display: none !important;
+}
+.topbar-title-wrapper {
+  display: block;
+}
+
 @media (max-width: 768px) {
   .sidebar-toggle-btn {
     display: inline-flex !important;
+  }
+  .topbar-logo {
+    display: flex !important;
+  }
+  .topbar-title-wrapper {
+    display: none !important;
   }
 }
 

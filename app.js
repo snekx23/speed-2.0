@@ -164,6 +164,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (toggleBtn) {
     toggleBtn.addEventListener('click', openMobileSidebar);
   }
+  const topbarLogo = document.getElementById('topbar-logo');
+  if (topbarLogo) {
+    topbarLogo.addEventListener('click', openMobileSidebar);
+  }
   if (overlay) {
     overlay.addEventListener('click', closeMobileSidebar);
   }
