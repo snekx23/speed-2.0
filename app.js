@@ -122,6 +122,13 @@ async function fetchPendingDeliveries() {
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+  // Register Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker do Painel registrado:', reg.scope))
+      .catch(err => console.error('Erro ao registrar Service Worker do Painel:', err));
+  }
+
   // Hide loader after a simulated 1.2s delay for premium entry feel
   setTimeout(() => {
     const loader = document.getElementById('loader');
@@ -1514,5 +1521,51 @@ function showToastNotification(message) {
     }, 300);
   }, 4000);
 }
+
+/* ================= PWA INSTALLATION & MODAL CONTROLS ================= */
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  console.log('beforeinstallprompt event fired');
+});
+
+window.addEventListener('appinstalled', (evt) => {
+  console.log('PWA foi instalado com sucesso');
+  showToastNotification("Aplicativo instalado com sucesso!");
+  deferredPrompt = null;
+});
+
+window.installPWA = async function() {
+  if (!deferredPrompt) {
+    showToastNotification("Instalação direta indisponível. Por favor, instale manualmente usando o guia abaixo.");
+    return;
+  }
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`User choice: ${outcome}`);
+  deferredPrompt = null;
+};
+
+window.showDownloadAppModal = function() {
+  const modal = document.getElementById('modal-download-app');
+  if (modal) {
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  }
+};
+
+window.closeDownloadApp = function(event) {
+  const modal = document.getElementById('modal-download-app');
+  if (!modal) return;
+  if (event) {
+    const isOverlay = event.target === modal;
+    const isCloseBtn = event.target.closest('.modal-close-btn');
+    if (!isOverlay && !isCloseBtn) return;
+  }
+  modal.classList.add('hidden');
+};
 
 

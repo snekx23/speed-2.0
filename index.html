@@ -19,6 +19,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PWA Manifest for Dashboard -->
+  <link rel="manifest" href="manifest-dashboard.json">
 </head>
 <body class="dark-theme">
   <!-- Loader -->
@@ -40,8 +42,11 @@
             <img src="logo.jpg" class="logo-image" alt="Logo Speed">
             <span class="logo-text">SPEED<span class="cyan-text">.</span></span>
           </div>
-          <div class="nav-badges">
+          <div class="nav-badges" style="display: flex; gap: 12px; align-items: center;">
             <span class="badge badge-success"><span class="dot"></span> 942 Motoboys Ativos</span>
+            <button class="btn btn-secondary btn-sm" onclick="showDownloadAppModal()" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; height: 30px; font-size: 0.8rem; cursor: pointer; border: 1px solid var(--border-color); background: var(--secondary); color: var(--color-text);">
+              <i data-lucide="download" style="width: 14px; height: 14px;"></i> <span>Baixar App</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -183,6 +188,12 @@
             </button>
             <button class="nav-item" data-tab="order-tracking" id="nav-tracking-tab" onclick="switchDashboardTab('order-tracking')" disabled>
               <i data-lucide="map-pin"></i> Rastrear Entrega <span class="pulse-dot hidden"></span>
+            </button>
+          </div>
+
+          <div class="nav-group" id="nav-general-group" style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <button class="nav-item" data-tab="download-app" onclick="switchDashboardTab('download-app')">
+              <i data-lucide="download"></i> Baixar Aplicativo
             </button>
           </div>
         </nav>
@@ -930,6 +941,97 @@
             </div>
           </div>
 
+          <!-- Baixar Aplicativo Tab -->
+          <div id="tab-download-app" class="dashboard-tab-content">
+            <div class="downloads-layout" style="display: flex; flex-direction: column; gap: 24px; max-width: 900px; margin: 0 auto; padding: 20px 0;">
+              
+              <!-- Header Section -->
+              <div class="downloads-header" style="text-align: center; margin-bottom: 12px;">
+                <span class="badge badge-success" style="background: var(--primary-glow); color: var(--primary); padding: 6px 12px; font-weight: 600; font-size: 0.8rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;"><i data-lucide="sparkles" style="width: 14px; height: 14px; display: inline; vertical-align: middle; margin-right: 4px;"></i> Aplicativo Instalável (PWA)</span>
+                <h2 style="font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; margin-top: 12px; color: var(--color-text);">Adicionar à Tela Inicial</h2>
+                <p class="text-muted" style="font-size: 1rem; max-width: 600px; margin: 8px auto 0;">Aproveite a experiência completa com notificações, funcionamento offline e acesso ultra rápido em apenas um clique.</p>
+              </div>
+
+              <!-- Main Install Grid -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                
+                <!-- Card 1: Main App (Administração & Comércios) -->
+                <div class="card" style="padding: 28px; border: 1px solid var(--border-color); border-top: 4px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; transition: all var(--transition-fast);">
+                  <div>
+                    <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--primary-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(255, 210, 0, 0.2);">
+                      <i data-lucide="layout-dashboard" style="width: 24px; height: 24px; color: var(--primary);"></i>
+                    </div>
+                    <h3 style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--color-text);">Painel Administrativo</h3>
+                    <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5; margin-top: 8px;">Instale o painel completo para gerenciar faturamento, acompanhar a frota de motoboys e receber novos pedidos de entrega.</p>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+                    <button class="btn btn-primary btn-block pwa-install-btn" onclick="installPWA()" style="gap: 8px;">
+                      <i data-lucide="plus-circle"></i> Instalar Painel
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Card 2: Rider App (App do Motoboy PWA) -->
+                <div class="card" style="padding: 28px; border: 1px solid var(--border-color); border-top: 4px solid var(--accent-cyan); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; transition: all var(--transition-fast);">
+                  <div>
+                    <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--accent-cyan-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(0, 174, 239, 0.2);">
+                      <i data-lucide="bike" style="width: 24px; height: 24px; color: var(--accent-cyan);"></i>
+                    </div>
+                    <h3 style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--color-text);">App do Entregador</h3>
+                    <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5; margin-top: 8px;">Versão leve otimizada para celulares dos motoboys, para que eles vejam as teles recebidas, naveguem no mapa e finalizem as entregas.</p>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+                    <a href="motoboy.html" target="_blank" class="btn btn-secondary btn-block" style="gap: 8px; border: 1px solid var(--border-color); color: var(--color-text); text-decoration: none; display: flex; align-items: center; justify-content: center; background: var(--secondary);">
+                      <i data-lucide="external-link"></i> Abrir Versão Motoboy
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Install Instructions Collapsible/Guide -->
+              <div class="card" style="padding: 28px; border: 1px solid var(--border-color);">
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--color-text); margin-bottom: 20px; display: flex; align-items: center; gap: 8px;"><i data-lucide="info" style="color: var(--primary);"></i> Como Instalar Manualmente:</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+                  
+                  <!-- Android / Chrome -->
+                  <div style="border-right: 1px solid var(--border-color); padding-right: 20px;">
+                    <h4 style="font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 6px; font-size: 0.95rem;"><i data-lucide="smartphone" class="inline-icon text-yellow"></i> Android & Chrome</h4>
+                    <ol class="text-muted" style="font-size: 0.85rem; margin-top: 10px; padding-left: 20px; line-height: 1.6;">
+                      <li>Abra no navegador Chrome.</li>
+                      <li>Clique nos três pontinhos no canto superior direito.</li>
+                      <li>Selecione <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
+                    </ol>
+                  </div>
+
+                  <!-- iPhone / iOS Safari -->
+                  <div style="border-right: 1px solid var(--border-color); padding-right: 20px;">
+                    <h4 style="font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 6px; font-size: 0.95rem;"><i data-lucide="iphone" class="inline-icon text-blue"></i> iPhone (iOS Safari)</h4>
+                    <ol class="text-muted" style="font-size: 0.85rem; margin-top: 10px; padding-left: 20px; line-height: 1.6;">
+                      <li>Abra no navegador Safari padrão do iPhone.</li>
+                      <li>Clique no botão de <strong>Compartilhar</strong> (ícone de seta pra cima na barra inferior).</li>
+                      <li>Role a lista e clique em <strong>"Adicionar à Tela de Início"</strong>.</li>
+                    </ol>
+                  </div>
+
+                  <!-- Desktop PC -->
+                  <div>
+                    <h4 style="font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 6px; font-size: 0.95rem;"><i data-lucide="monitor" class="inline-icon text-green"></i> Computador (PC / Mac)</h4>
+                    <ol class="text-muted" style="font-size: 0.85rem; margin-top: 10px; padding-left: 20px; line-height: 1.6;">
+                      <li>Abra no Chrome ou Microsoft Edge.</li>
+                      <li>Na barra de endereços (ao lado do link), clique no botão de <strong>Instalar</strong> (ícone de computador com seta para baixo).</li>
+                    </ol>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
@@ -1049,6 +1151,44 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: Baixar App -->
+  <div id="modal-download-app" class="modal-overlay hidden" onclick="closeDownloadApp(event)">
+    <div class="modal-card" style="max-width: 600px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="download" class="inline-icon text-yellow"></i> Baixar Aplicativo</h3>
+        <button class="modal-close-btn" onclick="closeDownloadApp()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 8px;">Adicione a plataforma à sua tela inicial para ter notificações instantâneas e acesso rápido.</p>
+        
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <div class="card flex-1" style="padding: 16px; border: 1px solid var(--border-color); text-align: center; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+            <div>
+              <i data-lucide="layout-dashboard" style="width: 32px; height: 32px; color: var(--primary); margin: 0 auto 12px; display: block;"></i>
+              <h4 style="font-size: 1rem; font-weight: 600; color: var(--color-text);">Painel Principal</h4>
+              <p class="text-muted text-xs mt-1" style="margin-top: 4px;">Instalar o aplicativo administrativo principal</p>
+            </div>
+            <button class="btn btn-primary btn-sm btn-block pwa-install-btn" onclick="installPWA()" style="height: 30px; font-size: 0.8rem; margin-top: 12px;">Instalar App</button>
+          </div>
+          
+          <div class="card flex-1" style="padding: 16px; border: 1px solid var(--border-color); text-align: center; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+            <div>
+              <i data-lucide="bike" style="width: 32px; height: 32px; color: var(--accent-cyan); margin: 0 auto 12px; display: block;"></i>
+              <h4 style="font-size: 1rem; font-weight: 600; color: var(--color-text);">PWA do Motoboy</h4>
+              <p class="text-muted text-xs mt-1" style="margin-top: 4px;">Instalar o aplicativo exclusivo de entregas</p>
+            </div>
+            <a href="motoboy.html" target="_blank" class="btn btn-secondary btn-sm btn-block" style="height: 30px; font-size: 0.8rem; margin-top: 12px; text-decoration: none; display: flex; align-items: center; justify-content: center; background: var(--secondary);">Abrir App</a>
+          </div>
+        </div>
+        
+        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">
+          <h4 style="font-size: 0.88rem; font-weight: 600; color: var(--color-text); margin-bottom: 8px;">Dica de instalação rápida:</h4>
+          <p class="text-muted" style="font-size: 0.8rem; line-height: 1.4;">Clique no ícone de instalar <i data-lucide="plus-circle" style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i> na barra de endereços do seu navegador Chrome/Edge, ou use <strong>"Adicionar à Tela de Início"</strong> no Safari do iPhone.</p>
+        </div>
+      </div>
     </div>
   </div>
 
