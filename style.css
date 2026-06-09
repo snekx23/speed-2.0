@@ -1863,4 +1863,60 @@ select {
   }
 }
 
+/* Active Deliveries Grid & Cards */
+.active-deliveries-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.active-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.active-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 174, 239, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+.active-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.active-card-header strong {
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.active-card-body {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  flex-grow: 1;
+}
+
+.active-card-body p {
+  margin-bottom: 4px;
+}
+
+.active-card-body p strong {
+  color: var(--color-text-muted);
+}
+
+
 

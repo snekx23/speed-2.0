@@ -366,8 +366,10 @@ async function switchDashboardTab(targetTab) {
   } else if (targetTab === 'owner-tracking-map') {
     await fetchPendingDeliveries();
     await fetchFleet();
+    await fetchClientHistory();
     initOwnerFleetMap();
     renderPendingDeliveries();
+    renderActiveDeliveries();
   } else if (targetTab === 'owner-fleet') {
     await fetchFleet();
     renderFleetTable();
@@ -1132,6 +1134,7 @@ async function dispatchDelivery(deliveryId, riderId) {
 
   // Re-render components
   renderPendingDeliveries();
+  renderActiveDeliveries();
   renderFleetTable();
   renderClientHistoryTable();
 
@@ -1145,6 +1148,115 @@ async function dispatchDelivery(deliveryId, riderId) {
   // Display Premium Alert/Notification
   showToastNotification(`Tele ${deliveryId} enviada com sucesso para ${rider.name}!`);
 }
+
+// Render active deliveries (deliveries currently with riders)
+function renderActiveDeliveries() {
+  const container = document.getElementById('active-deliveries-container');
+  if (!container) return;
+
+  // Find active deliveries in mockData.clientHistory (status is not 'Entregue')
+  const activeOrders = mockData.clientHistory.filter(order => order.status !== 'Entregue');
+
+  if (activeOrders.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background-color: var(--bg-card); border: 1px dashed var(--border-color); border-radius: var(--border-radius-md); color: var(--color-text-muted);">
+        <i data-lucide="check-circle" style="width: 48px; height: 48px; color: var(--color-text-muted); margin-bottom: 12px; display: inline-block;"></i>
+        <p style="font-weight: 600; color: var(--color-text);">Nenhuma tele em trânsito</p>
+        <p style="font-size: 0.9rem;">Todos os motoboys estão aguardando despacho.</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = '';
+  activeOrders.forEach(order => {
+    const card = document.createElement('div');
+    card.className = 'active-card';
+    card.innerHTML = `
+      <div class="active-card-header">
+        <strong style="font-family: var(--font-display);">${order.id}</strong>
+        <span class="badge badge-success" style="background: var(--accent-cyan-glow); color: var(--accent-cyan); border-color: rgba(0, 174, 239, 0.2);">${order.rider}</span>
+      </div>
+      <div class="active-card-body">
+        <p><strong>Destino:</strong> ${order.destName}</p>
+        <p class="text-muted text-xs" style="margin-top: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> ${order.address}</p>
+        <p style="margin-top: 6px;"><strong>Distância:</strong> ${order.dist} • <strong>Taxa:</strong> ${order.price}</p>
+        <p style="margin-top: 4px;"><strong>Status:</strong> <span class="status-indicator ${order.statusClass}">${order.status}</span></p>
+      </div>
+      <div class="active-card-footer" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+        <button class="btn btn-secondary btn-sm" onclick="handleCompleteClick('${order.id}', '${order.rider}')" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 4px; height: 30px; cursor: pointer; display: flex; align-items: center; gap: 6px; background-color: var(--secondary); color: var(--color-text); border: 1px solid var(--border-color);">
+          <i data-lucide="check-circle" style="width: 14px; height: 14px; color: var(--success);"></i> Concluir Entrega
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+  lucide.createIcons();
+}
+
+// Complete delivery function
+async function completeDelivery(deliveryId, riderName) {
+  if (supabaseClient) {
+    // 1. Update delivery status to Entregue in client_history table
+    const { error: historyError } = await supabaseClient
+      .from('client_history')
+      .update({
+        status: 'Entregue',
+        status_class: 'status-success'
+      })
+      .eq('id', deliveryId);
+
+    if (historyError) {
+      console.error("Error completing delivery in client history on Supabase:", historyError);
+      alert("Erro ao atualizar o histórico de entrega no Supabase.");
+      return;
+    }
+
+    // 2. Find rider and update status to Disponivel and clear delivery
+    const { error: fleetError } = await supabaseClient
+      .from('fleet')
+      .update({
+        status: 'Disponível',
+        status_class: 'status-success',
+        delivery: 'Nenhuma'
+      })
+      .eq('name', riderName);
+
+    if (fleetError) {
+      console.error("Error resetting rider status on Supabase:", fleetError);
+      alert("Erro ao liberar o motoboy no Supabase.");
+      return;
+    }
+  }
+
+  // Refresh all state arrays from Supabase
+  await fetchPendingDeliveries();
+  await fetchFleet();
+  await fetchClientHistory();
+
+  // Re-render components
+  renderPendingDeliveries();
+  renderActiveDeliveries();
+  renderFleetTable();
+  renderClientHistoryTable();
+
+  // Re-render map markers
+  if (ownerFleetMap) {
+    const center = ownerFleetMap.getCenter();
+    renderMapMarkers([center.lat, center.lng]);
+  }
+
+  // Display toast notification
+  showToastNotification(`Tele ${deliveryId} concluída e entregue!`);
+}
+
+// Global click handler wrapper
+window.handleCompleteClick = function(deliveryId, riderName) {
+  if (confirm(`Deseja concluir e finalizar a entrega ${deliveryId} realizada por ${riderName}?`)) {
+    completeDelivery(deliveryId, riderName);
+  }
+};
 
 // Helper to show modern toast notification
 function showToastNotification(message) {
