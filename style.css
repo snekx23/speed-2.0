@@ -1918,5 +1918,274 @@ select {
   color: var(--color-text-muted);
 }
 
+/* ================= NOTIFICATION PANEL ================= */
+.notification-bell {
+  position: relative;
+}
 
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 320px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.notification-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.notification-panel-header h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.notif-clear-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-primary);
+}
+
+.notif-clear-btn:hover {
+  color: var(--primary-hover);
+}
+
+.notification-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast);
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item.unread {
+  background-color: rgba(255, 0, 170, 0.04);
+}
+
+.notif-item:hover {
+  background-color: var(--bg-card-hover);
+}
+
+.notif-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.notif-icon.bg-primary {
+  background-color: var(--primary-glow);
+  color: var(--primary);
+}
+
+.notif-icon.bg-yellow {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.notif-icon.bg-cyan {
+  background-color: var(--accent-cyan-glow);
+  color: var(--accent-cyan);
+}
+
+.notif-content p {
+  font-size: 0.82rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.notif-time {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  display: block;
+}
+
+/* ================= MODAL ================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  width: 100%;
+  max-width: 540px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  color: var(--color-text);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.form-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--error);
+  margin-top: 16px;
+}
+
+/* Topbar positioning fix for notification dropdown */
+.topbar-right {
+  position: relative;
+}
+
+/* ================= CREDENTIAL CARD ================= */
+.credential-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.cred-row:last-child {
+  border-bottom: none;
+}
+
+.cred-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.cred-value {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.btn-pin-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-pin-toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.btn-pin-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cred-actions {
+  display: flex;
+  gap: 10px;
+}
 

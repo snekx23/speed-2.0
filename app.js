@@ -47,11 +47,30 @@ async function fetchFleet() {
       delivery: item.delivery,
       battery: item.battery,
       rating: parseFloat(item.rating),
-      statusClass: item.status_class
+      statusClass: item.status_class,
+      pin: item.pin || '—'
     }));
   } catch (err) {
     console.error("Error fetching fleet from Supabase:", err);
   }
+}
+
+// Generate next sequential Motoboy ID (#MB-0001, #MB-0002, ...)
+async function getNextRiderID() {
+  let maxNum = 0;
+  if (supabaseClient) {
+    const { data } = await supabaseClient.from('fleet').select('id');
+    (data || []).forEach(item => {
+      const match = (item.id || '').match(/#MB-(\d+)/);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    });
+  } else {
+    mockData.fleet.forEach(r => {
+      const match = (r.id || '').match(/#MB-(\d+)/);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    });
+  }
+  return '#MB-' + String(maxNum + 1).padStart(4, '0');
 }
 
 async function fetchClientHistory() {
@@ -363,13 +382,19 @@ async function switchDashboardTab(targetTab) {
   // Trigger specific tab initializers (like charts render)
   if (targetTab === 'owner-overview') {
     initOwnerOverviewChart();
-  } else if (targetTab === 'owner-tracking-map') {
-    await fetchPendingDeliveries();
+  } else if (targetTab === 'owner-fleet-map') {
     await fetchFleet();
-    await fetchClientHistory();
     initOwnerFleetMap();
-    renderPendingDeliveries();
-    renderActiveDeliveries();
+  } else if (targetTab === 'owner-teles') {
+    try {
+      await fetchPendingDeliveries();
+      await fetchFleet();
+      await fetchClientHistory();
+      renderPendingDeliveries();
+      renderActiveDeliveries();
+    } catch (err) {
+      console.error('Erro ao carregar aba Gestão de Teles:', err);
+    }
   } else if (targetTab === 'owner-fleet') {
     await fetchFleet();
     renderFleetTable();
@@ -420,6 +445,11 @@ function renderFleetTable() {
           <i data-lucide="star" class="fill-yellow text-yellow"></i> <strong>${rider.rating.toFixed(2)}</strong>
         </div>
       </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="viewRiderCredentials('${rider.id}')" style="gap: 6px; font-size: 0.78rem; padding: 5px 10px;">
+          <i data-lucide="key-round"></i> Ver Acesso
+        </button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -447,6 +477,22 @@ function renderClientHistoryTable() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// Generate next sequential TELE ID (#TELE-0001, #TELE-0002, ...)
+async function getNextTeleId() {
+  let maxNum = 0;
+  if (supabaseClient) {
+    const [{ data: pending }, { data: history }] = await Promise.all([
+      supabaseClient.from('pending_deliveries').select('id'),
+      supabaseClient.from('client_history').select('id')
+    ]);
+    [...(pending || []), ...(history || [])].forEach(item => {
+      const match = (item.id || '').match(/#TELE-(\d+)/);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    });
+  }
+  return '#TELE-' + String(maxNum + 1).padStart(4, '0');
 }
 
 // Calculate delivery price and distance on form inputs
@@ -496,8 +542,8 @@ async function submitDeliveryRequest(event) {
 
   if (!window.lastEstimate) return;
 
-  // Generate mock order details
-  const randomId = '#SPD-' + Math.floor(1000 + Math.random() * 9000);
+  // Generate sequential TELE ID
+  const randomId = await getNextTeleId();
   
   // Format payment name
   const paymentStr = payMethod === 'pix' ? 'PIX (Pago pelo App)' : (payMethod === 'cartao-maquininha' ? 'Levar Maquininha' : 'Dinheiro (Troco para R$ ' + document.getElementById('change-amount').value + ')');
@@ -979,12 +1025,15 @@ function renderPendingDeliveries() {
   const container = document.getElementById('pending-deliveries-container');
   if (!container) return;
 
+  const pendingBadge = document.getElementById('pending-count-badge');
+  if (pendingBadge) pendingBadge.innerText = mockData.pendingDeliveries.length + ' pendentes';
+
   if (mockData.pendingDeliveries.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background-color: var(--bg-card); border: 1px dashed var(--border-color); border-radius: var(--border-radius-md); color: var(--color-text-muted);">
         <i data-lucide="check-circle" style="width: 48px; height: 48px; color: var(--success); margin-bottom: 12px; display: inline-block;"></i>
         <p style="font-weight: 600; color: var(--color-text);">Tudo em ordem!</p>
-        <p style="font-size: 0.9rem;">Nenhuma entrega pendente de despacho no momento.</p>
+        <p style="font-size: 0.9rem;">Nenhuma tele pendente de despacho no momento.</p>
       </div>
     `;
     lucide.createIcons();
@@ -1157,6 +1206,9 @@ function renderActiveDeliveries() {
   // Find active deliveries in mockData.clientHistory (status is not 'Entregue')
   const activeOrders = mockData.clientHistory.filter(order => order.status !== 'Entregue');
 
+  const activeBadge = document.getElementById('active-count-badge');
+  if (activeBadge) activeBadge.innerText = activeOrders.length + ' em rota';
+
   if (activeOrders.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background-color: var(--bg-card); border: 1px dashed var(--border-color); border-radius: var(--border-radius-md); color: var(--color-text-muted);">
@@ -1257,6 +1309,185 @@ window.handleCompleteClick = function(deliveryId, riderName) {
     completeDelivery(deliveryId, riderName);
   }
 };
+
+/* ================= CREDENTIAL CARD ================= */
+
+// Armazena as credenciais abertas no momento
+let _currentCreds = { id: '', name: '', pin: '' };
+let _pinVisible = false;
+
+function openCredentialCard(id, name, pin) {
+  _currentCreds = { id, name, pin };
+  _pinVisible = false;
+
+  document.getElementById('cred-name').innerText = name;
+  document.getElementById('cred-id').innerText = id;
+  document.getElementById('cred-pin').innerText = '••••';
+
+  const toggleBtn = document.getElementById('pin-toggle-btn');
+  if (toggleBtn) toggleBtn.innerHTML = '<i data-lucide="eye"></i>';
+
+  document.getElementById('modal-credentials').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeCredentials(event) {
+  if (event && event.target !== document.getElementById('modal-credentials')) return;
+  document.getElementById('modal-credentials').classList.add('hidden');
+}
+
+function togglePinVisibility() {
+  _pinVisible = !_pinVisible;
+  const pinEl = document.getElementById('cred-pin');
+  const toggleBtn = document.getElementById('pin-toggle-btn');
+  pinEl.innerText = _pinVisible ? _currentCreds.pin : '••••';
+  toggleBtn.innerHTML = _pinVisible
+    ? '<i data-lucide="eye-off"></i>'
+    : '<i data-lucide="eye"></i>';
+  lucide.createIcons();
+}
+
+function copyCredentials() {
+  const text = `Speed Logística — Acesso Motoboy\nNome: ${_currentCreds.name}\nID: ${_currentCreds.id}\nPIN: ${_currentCreds.pin}\nAcesso: https://speed-zztn.vercel.app/motoboy.html`;
+  navigator.clipboard.writeText(text).then(() => {
+    showToastNotification('Credenciais copiadas!');
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToastNotification('Credenciais copiadas!');
+  });
+}
+
+function shareWhatsApp() {
+  const text = encodeURIComponent(
+    `*Speed Logística — Seu Acesso*\n\nOlá, ${_currentCreds.name}! Suas credenciais de acesso ao app de motoboy são:\n\n*ID:* ${_currentCreds.id}\n*PIN:* ${_currentCreds.pin}\n\n*Link:* https://speed-zztn.vercel.app/motoboy.html\n\n_Não compartilhe seu PIN com ninguém._`
+  );
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+}
+
+// Mostra credenciais de um motoboy já cadastrado
+function viewRiderCredentials(riderId) {
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  if (!rider) return;
+  openCredentialCard(rider.id, rider.name, rider.pin || '(sem PIN)');
+}
+
+/* ================= NOTIFICATION BELL ================= */
+
+function toggleNotifications() {
+  const panel = document.getElementById('notification-panel');
+  panel.classList.toggle('hidden');
+}
+
+function clearNotifications(event) {
+  if (event) event.stopPropagation();
+  document.getElementById('notification-list').innerHTML = `
+    <div style="text-align: center; padding: 32px 16px; color: var(--color-text-muted);">
+      <i data-lucide="check-circle" style="width: 36px; height: 36px; color: var(--success); display: inline-block; margin-bottom: 8px;"></i>
+      <p style="font-size: 0.9rem;">Nenhuma notificação pendente.</p>
+    </div>
+  `;
+  document.getElementById('bell-badge').style.display = 'none';
+  lucide.createIcons();
+}
+
+// Close notification panel when clicking outside
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('notification-panel');
+  const bell  = document.getElementById('notification-bell');
+  if (panel && bell && !panel.classList.contains('hidden') && !bell.contains(e.target)) {
+    panel.classList.add('hidden');
+  }
+});
+
+/* ================= MOTOBOY REGISTRATION MODAL ================= */
+
+function openRegisterMotoboy() {
+  document.getElementById('modal-register-motoboy').classList.remove('hidden');
+  document.getElementById('register-motoboy-form').reset();
+  document.getElementById('register-motoboy-error').classList.add('hidden');
+  lucide.createIcons();
+}
+
+function closeRegisterMotoboy(event) {
+  // If called from overlay click, close; if called directly, close
+  if (event && event.target !== document.getElementById('modal-register-motoboy')) return;
+  document.getElementById('modal-register-motoboy').classList.add('hidden');
+}
+
+async function submitRegisterMotoboy(event) {
+  event.preventDefault();
+
+  const name     = document.getElementById('mb-name').value.trim();
+  const vehicle  = document.getElementById('mb-vehicle').value.trim();
+  const plate    = document.getElementById('mb-plate').value.trim().toUpperCase();
+  const battery  = document.getElementById('mb-battery').value;
+  const pin      = document.getElementById('mb-pin').value.trim();
+
+  const submitBtn = document.getElementById('register-motoboy-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.querySelector('span').innerText = 'Cadastrando...';
+
+  // Generate sequential ID
+  const newId = await getNextRiderID();
+
+  const newRider = {
+    id: newId,
+    name: name,
+    vehicle: vehicle,
+    plate: plate,
+    status: 'Disponível',
+    status_class: 'status-success',
+    delivery: 'Nenhuma',
+    battery: battery + '%',
+    rating: 5.00,
+    pin: pin
+  };
+
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from('fleet')
+      .insert([newRider]);
+
+    if (error) {
+      const errorEl = document.getElementById('register-motoboy-error');
+      document.getElementById('register-motoboy-error-text').innerText = 'Erro ao salvar: ' + error.message;
+      errorEl.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.querySelector('span').innerText = 'Cadastrar Motoboy';
+      return;
+    }
+  } else {
+    // Offline fallback: add to local mockData
+    mockData.fleet.push({
+      id: newId,
+      name: name,
+      vehicle: vehicle,
+      plate: plate,
+      status: 'Disponível',
+      statusClass: 'status-success',
+      delivery: 'Nenhuma',
+      battery: battery + '%',
+      rating: 5.00
+    });
+  }
+
+  // Refresh fleet table
+  await fetchFleet();
+  renderFleetTable();
+
+  // Close registration modal and open credential card
+  document.getElementById('modal-register-motoboy').classList.add('hidden');
+  openCredentialCard(newId, name, pin);
+
+  submitBtn.disabled = false;
+  submitBtn.querySelector('span').innerText = 'Cadastrar Motoboy';
+}
 
 // Helper to show modern toast notification
 function showToastNotification(message) {

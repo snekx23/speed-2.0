@@ -154,8 +154,11 @@
             <button class="nav-item active" data-tab="owner-overview" onclick="switchDashboardTab('owner-overview')">
               <i data-lucide="layout-dashboard"></i> Visão Geral
             </button>
-            <button class="nav-item" data-tab="owner-tracking-map" onclick="switchDashboardTab('owner-tracking-map')">
-              <i data-lucide="map"></i> Acompanhar Entregas
+            <button class="nav-item" data-tab="owner-fleet-map" onclick="switchDashboardTab('owner-fleet-map')">
+              <i data-lucide="map"></i> Mapa da Frota
+            </button>
+            <button class="nav-item" data-tab="owner-teles" onclick="switchDashboardTab('owner-teles')">
+              <i data-lucide="list-checks"></i> Gestão de Teles
             </button>
             <button class="nav-item" data-tab="owner-fleet" onclick="switchDashboardTab('owner-fleet')">
               <i data-lucide="bike"></i> Frota & Motoboys
@@ -219,9 +222,39 @@
               <i data-lucide="calendar"></i>
               <span id="current-date-span">Sáb, 6 de Junho de 2026</span>
             </div>
-            <div class="notification-bell">
+            <div class="notification-bell" id="notification-bell" onclick="toggleNotifications()" style="position: relative; cursor: pointer;">
               <i data-lucide="bell"></i>
-              <span class="bell-badge">3</span>
+              <span class="bell-badge" id="bell-badge">3</span>
+            </div>
+            <!-- Notification Dropdown Panel -->
+            <div id="notification-panel" class="notification-panel hidden">
+              <div class="notification-panel-header">
+                <h4>Notificações</h4>
+                <button onclick="clearNotifications(event)" class="notif-clear-btn">Limpar tudo</button>
+              </div>
+              <div id="notification-list" class="notification-list">
+                <div class="notif-item unread">
+                  <div class="notif-icon bg-primary"><i data-lucide="bike"></i></div>
+                  <div class="notif-content">
+                    <p><strong>Carlos Oliveira</strong> concluiu a entrega <strong>#SPD-8821</strong></p>
+                    <span class="notif-time">Há 5 minutos</span>
+                  </div>
+                </div>
+                <div class="notif-item unread">
+                  <div class="notif-icon bg-yellow"><i data-lucide="alert-triangle"></i></div>
+                  <div class="notif-content">
+                    <p><strong>Aline Dias</strong> está com bateria abaixo de 20%</p>
+                    <span class="notif-time">Há 12 minutos</span>
+                  </div>
+                </div>
+                <div class="notif-item unread">
+                  <div class="notif-icon bg-cyan"><i data-lucide="store"></i></div>
+                  <div class="notif-content">
+                    <p><strong>Pizzaria Bella Italia</strong> solicitou novo motoboy</p>
+                    <span class="notif-time">Há 20 minutos</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -358,9 +391,8 @@
 
           </div>
 
-          <!-- 1b. Owner Tracking Map -->
-          <div id="tab-owner-tracking-map" class="dashboard-tab-content">
-            <!-- Real Map Monitor -->
+          <!-- 1b. Owner Fleet Map (mapa apenas) -->
+          <div id="tab-owner-fleet-map" class="dashboard-tab-content">
             <div class="card map-monitor-card">
               <div class="card-header flex-row">
                 <div>
@@ -370,26 +402,35 @@
                 <span class="badge badge-success"><span class="dot"></span> Monitoramento GPS</span>
               </div>
               <div class="card-body p-0" style="position: relative;">
-                <div id="owner-fleet-map" style="height: 450px; width: 100%; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); z-index: 1;"></div>
+                <div id="owner-fleet-map" style="height: calc(100vh - 220px); min-height: 420px; width: 100%; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); z-index: 1;"></div>
               </div>
             </div>
+          </div>
 
-            <!-- Pending Teles/Deliveries (Dispatch System) -->
-            <div class="mt-4">
-              <div class="section-header" style="margin-bottom: 16px;">
-                <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Entregas Pendentes (Teles Disponíveis)</h3>
-                <p class="text-muted">Selecione um motoboy disponível e envie a tele para ele iniciar a entrega.</p>
+          <!-- 1c. Owner Teles Management -->
+          <div id="tab-owner-teles" class="dashboard-tab-content">
+            <!-- Pending Teles -->
+            <div>
+              <div class="section-header" style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Teles Pendentes de Despacho</h3>
+                  <p class="text-muted">Selecione um motoboy disponível e envie a tele para ele iniciar a entrega.</p>
+                </div>
+                <span class="badge badge-warning" id="pending-count-badge">0 pendentes</span>
               </div>
               <div class="pending-grid" id="pending-deliveries-container">
                 <!-- Rendered dynamically via JS -->
               </div>
             </div>
 
-            <!-- Active Deliveries (In Progress with Motoboys) -->
-            <div class="mt-4" style="margin-top: 32px;">
-              <div class="section-header" style="margin-bottom: 16px;">
-                <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Entregas em Andamento (Com os Motoboys)</h3>
-                <p class="text-muted">Acompanhe as corridas que já estão em trânsito com os entregadores e finalize-as.</p>
+            <!-- Active Deliveries -->
+            <div style="margin-top: 36px;">
+              <div class="section-header" style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Teles em Andamento</h3>
+                  <p class="text-muted">Corridas em trânsito com os entregadores. Finalize ao confirmar entrega.</p>
+                </div>
+                <span class="badge badge-success" id="active-count-badge">0 em rota</span>
               </div>
               <div class="active-deliveries-grid" id="active-deliveries-container">
                 <!-- Rendered dynamically via JS -->
@@ -405,7 +446,7 @@
                   <h3>Lista de Motoboys em Campo</h3>
                   <p class="text-muted">Controle de motoristas ativos, status de entrega e bateria/combustível.</p>
                 </div>
-                <button class="btn btn-primary btn-sm"><i data-lucide="plus"></i> Cadastrar Entregador</button>
+                <button class="btn btn-primary btn-sm" onclick="openRegisterMotoboy()"><i data-lucide="plus"></i> Cadastrar Entregador</button>
               </div>
               <div class="card-body no-padding">
                 <div class="table-responsive">
@@ -418,6 +459,7 @@
                         <th>Corrida Atual</th>
                         <th>Bateria/Combustível</th>
                         <th>Classificação</th>
+                        <th>Acesso</th>
                       </tr>
                     </thead>
                     <tbody id="owner-fleet-table-body">
@@ -892,6 +934,122 @@
       </main>
     </div>
 
+  </div>
+
+  <!-- Modal: Card de Credenciais do Motoboy -->
+  <div id="modal-credentials" class="modal-overlay hidden" onclick="closeCredentials(event)">
+    <div class="modal-card" style="max-width: 400px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="key-round" class="inline-icon text-yellow"></i> Acesso Criado!</h3>
+        <button class="modal-close-btn" onclick="closeCredentials()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="margin-bottom: 20px; font-size: 0.88rem;">Compartilhe as credenciais abaixo com o motoboy. O PIN não poderá ser recuperado depois.</p>
+
+        <div class="credential-card">
+          <div class="cred-row">
+            <span class="cred-label">Nome</span>
+            <strong id="cred-name" class="cred-value">—</strong>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">ID de Acesso</span>
+            <strong id="cred-id" class="cred-value text-yellow">—</strong>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">PIN</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong id="cred-pin" class="cred-value">••••</strong>
+              <button onclick="togglePinVisibility()" class="btn-pin-toggle" id="pin-toggle-btn" title="Mostrar/ocultar PIN">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cred-actions">
+          <button class="btn btn-secondary flex-1" onclick="copyCredentials()">
+            <i data-lucide="copy"></i> Copiar Texto
+          </button>
+          <button class="btn btn-primary flex-1" id="whatsapp-btn" onclick="shareWhatsApp()">
+            <i data-lucide="message-circle"></i> WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Cadastrar Motoboy -->
+  <div id="modal-register-motoboy" class="modal-overlay hidden" onclick="closeRegisterMotoboy(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="bike" class="inline-icon text-yellow"></i> Cadastrar Novo Entregador</h3>
+        <button class="modal-close-btn" onclick="closeRegisterMotoboy()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="register-motoboy-form" onsubmit="submitRegisterMotoboy(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="mb-name">Nome Completo</label>
+              <div class="input-wrapper">
+                <i data-lucide="user" class="input-icon"></i>
+                <input type="text" id="mb-name" required placeholder="Ex: João da Silva">
+              </div>
+            </div>
+          </div>
+          <div class="form-row mt-3">
+            <div class="form-group flex-1">
+              <label for="mb-vehicle">Veículo</label>
+              <div class="input-wrapper">
+                <i data-lucide="bike" class="input-icon"></i>
+                <input type="text" id="mb-vehicle" required placeholder="Ex: Honda CG 160 Fan">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label for="mb-plate">Placa</label>
+              <div class="input-wrapper">
+                <i data-lucide="hash" class="input-icon"></i>
+                <input type="text" id="mb-plate" required placeholder="Ex: ABC-1234" maxlength="8">
+              </div>
+            </div>
+          </div>
+          <div class="form-row mt-3">
+            <div class="form-group flex-1">
+              <label for="mb-phone">Telefone / WhatsApp</label>
+              <div class="input-wrapper">
+                <i data-lucide="phone" class="input-icon"></i>
+                <input type="tel" id="mb-phone" placeholder="Ex: (11) 99999-9999">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label for="mb-battery">Combustível / Bateria (%)</label>
+              <div class="input-wrapper">
+                <i data-lucide="zap" class="input-icon"></i>
+                <input type="number" id="mb-battery" min="0" max="100" value="100" required>
+              </div>
+            </div>
+          </div>
+          <div class="form-row mt-3">
+            <div class="form-group flex-1">
+              <label for="mb-pin">PIN de Acesso (4 dígitos)</label>
+              <div class="input-wrapper">
+                <i data-lucide="key-round" class="input-icon"></i>
+                <input type="password" id="mb-pin" required placeholder="••••" maxlength="4" pattern="[0-9]{4}" inputmode="numeric">
+              </div>
+              <p class="text-muted text-xs mt-1" style="margin-top: 6px;">O motoboy usará este PIN para acessar o app.</p>
+            </div>
+          </div>
+          <div id="register-motoboy-error" class="form-error-msg hidden">
+            <i data-lucide="alert-circle" class="inline-icon"></i> <span id="register-motoboy-error-text"></span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeRegisterMotoboy()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="register-motoboy-submit-btn">
+            <i data-lucide="plus-circle"></i> <span>Cadastrar Motoboy</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script src="app.js"></script>
