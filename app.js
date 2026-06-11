@@ -466,8 +466,8 @@ function renderFleetTable() {
         </div>
       </td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openRiderActions('${rider.id}')" style="gap: 6px; font-size: 0.78rem; padding: 5px 10px;">
-          <i data-lucide="more-horizontal"></i> Funções
+        <button class="btn btn-secondary btn-sm icon-action-btn" onclick="event.stopPropagation(); openRiderActions('${rider.id}')" title="Ações do motoboy" aria-label="Ações do motoboy">
+          <i data-lucide="settings"></i>
         </button>
       </td>
     `;
@@ -1111,29 +1111,38 @@ function renderMapMarkers(centerCoords) {
         const riderIdSafe = mockRider ? mockRider.id.replace('#', '') : rider.name.replace(/\W/g, '');
 
         dispatchHtml = `
-          <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
-            <label style="font-size: 0.75rem; font-weight: 600; display: block; margin-bottom: 4px; color: var(--color-text-muted);">Enviar Tele para este motoboy:</label>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <select id="popup-select-delivery-${riderIdSafe}" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--color-text); padding: 4px 6px; font-size: 0.75rem; border-radius: 4px; flex: 1; outline: none; box-sizing: border-box;">
+          <div class="map-popup-dispatch">
+            <label>Enviar tele para este motoboy</label>
+            <select id="popup-select-delivery-${riderIdSafe}" class="map-popup-select">
                 <option value="" disabled selected>Escolha a tele...</option>
                 ${deliveryOptions}
-              </select>
-              <button onclick="handlePopupDispatch('${rider.name}')" style="background-color: var(--primary); border: none; color: var(--color-text-dark); font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Enviar</button>
+            </select>
+            <div class="map-popup-actions">
+              <button class="map-popup-send-btn" onclick="handlePopupDispatch('${rider.name}')">
+                <i data-lucide="send"></i>
+                <span>Enviar</span>
+              </button>
+              ${mockRider ? `
+                <button class="map-popup-remove-btn" onclick="openRemoveTeleModal('${mockRider.id}')">Remover tele</button>
+                <button class="map-popup-settings-btn" onclick="openRiderActions('${mockRider.id}')" title="Funções do motoboy" aria-label="Funções do motoboy">
+                  <i data-lucide="settings"></i>
+                </button>
+              ` : ''}
             </div>
-            ${mockRider ? `<div style="display: flex; gap: 6px; margin-top: 8px;">
-              <button onclick="openRemoveTeleModal('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Remover tele</button>
-              <button onclick="openRiderActions('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Funções</button>
-            </div>` : ''}
           </div>
         `;
       } else {
         dispatchHtml = `
-          <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; font-size: 0.75rem; color: var(--color-text-muted); text-align: center;">
-            Nenhuma tele pendente.
-            ${mockRider ? `<div style="display: flex; gap: 6px; margin-top: 8px;">
-              <button onclick="openRemoveTeleModal('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Remover tele</button>
-              <button onclick="openRiderActions('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Funções</button>
-            </div>` : ''}
+          <div class="map-popup-dispatch map-popup-empty-actions">
+            <span>Nenhuma tele pendente.</span>
+            ${mockRider ? `
+              <div class="map-popup-actions">
+                <button class="map-popup-remove-btn" onclick="openRemoveTeleModal('${mockRider.id}')">Remover tele</button>
+                <button class="map-popup-settings-btn" onclick="openRiderActions('${mockRider.id}')" title="Funções do motoboy" aria-label="Funções do motoboy">
+                  <i data-lucide="settings"></i>
+                </button>
+              </div>
+            ` : ''}
           </div>
         `;
       }
@@ -1141,15 +1150,16 @@ function renderMapMarkers(centerCoords) {
 
     // Popup custom content
     const popupContent = `
-      <div class="map-popup-card" style="min-width: 180px;">
-        <h4 style="color: var(--color-text); margin: 0 0 4px 0; font-family: var(--font-display); font-weight: 700;">${rider.name}</h4>
-        <p style="margin: 0 0 6px 0; font-size: 0.8rem; color: var(--color-text-muted);">${rider.vehicle} • <strong>${rider.plate}</strong></p>
+      <div class="map-popup-card">
+        <h4>${rider.name}</h4>
+        <p>${rider.vehicle} • <strong>${rider.plate}</strong></p>
         <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#ff00aa' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#ff00aa' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${currentStatus}</span>
         ${dispatchHtml}
       </div>
     `;
 
     marker.bindPopup(popupContent);
+    marker.on('popupopen', () => lucide.createIcons());
     if (mockRider && selectedMapRiderId === mockRider.id) {
       ownerFleetMap.setView(riderCoords, 16);
       setTimeout(() => marker.openPopup(), 150);
@@ -1926,8 +1936,24 @@ function openProfileSettings() {
   document.getElementById('profile-avatar').value = creds.avatar || '';
   document.getElementById('profile-email').value = creds.email || '';
   document.getElementById('profile-partner').value = creds.partner || '';
+  updateProfilePreview();
   document.getElementById('modal-profile-settings').classList.remove('hidden');
   lucide.createIcons();
+}
+
+function updateProfilePreview() {
+  const avatar = document.getElementById('profile-avatar');
+  const name = document.getElementById('profile-name');
+  const role = document.getElementById('profile-role');
+  const avatarPreview = document.getElementById('profile-avatar-preview');
+  const namePreview = document.getElementById('profile-preview-name');
+  const rolePreview = document.getElementById('profile-preview-role');
+
+  if (avatarPreview) {
+    avatarPreview.src = avatar && avatar.value ? avatar.value : document.getElementById('user-avatar').src;
+  }
+  if (namePreview) namePreview.innerText = name && name.value ? name.value : 'Nome do perfil';
+  if (rolePreview) rolePreview.innerText = role && role.value ? role.value : 'Cargo / Função';
 }
 
 function closeProfileSettings(event) {

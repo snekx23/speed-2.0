@@ -1277,34 +1277,63 @@
 
   <!-- Modal: Perfil e Conta -->
   <div id="modal-profile-settings" class="modal-overlay hidden" onclick="closeProfileSettings(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card profile-modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
         <h3><i data-lucide="user-cog" class="inline-icon text-yellow"></i> Perfil e Conta</h3>
         <button class="modal-close-btn" onclick="closeProfileSettings()"><i data-lucide="x"></i></button>
       </div>
-      <form onsubmit="submitProfileSettings(event)">
+      <form class="profile-settings-form" onsubmit="submitProfileSettings(event)">
         <div class="modal-body">
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="profile-name">Nome</label>
-              <input type="text" id="profile-name" required>
+          <div class="profile-settings-layout">
+            <aside class="profile-preview-panel">
+              <img id="profile-avatar-preview" class="profile-avatar-preview" src="" alt="Foto do perfil">
+              <strong id="profile-preview-name">Gustavo Souza</strong>
+              <span id="profile-preview-role">Dono & CEO</span>
+              <div class="profile-partner-note">
+                <i data-lucide="users"></i>
+                <span>Conta preparada para dois sócios ou responsáveis.</span>
+              </div>
+            </aside>
+
+            <div class="profile-fields-panel">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="profile-name">Nome</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="user" class="input-icon"></i>
+                    <input type="text" id="profile-name" required oninput="updateProfilePreview()">
+                  </div>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="profile-role">Cargo / Função</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="briefcase-business" class="input-icon"></i>
+                    <input type="text" id="profile-role" required oninput="updateProfilePreview()">
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="profile-avatar">URL da Foto</label>
+                <div class="input-wrapper">
+                  <i data-lucide="image" class="input-icon"></i>
+                  <input type="url" id="profile-avatar" placeholder="https://..." oninput="updateProfilePreview()">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="profile-email">E-mail de acesso</label>
+                <div class="input-wrapper">
+                  <i data-lucide="mail" class="input-icon"></i>
+                  <input type="email" id="profile-email" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="profile-partner">Sócio / Segundo responsável</label>
+                <div class="input-wrapper">
+                  <i data-lucide="users" class="input-icon"></i>
+                  <input type="text" id="profile-partner" placeholder="Nome do sócio ou responsável">
+                </div>
+              </div>
             </div>
-            <div class="form-group flex-1">
-              <label for="profile-role">Cargo / Função</label>
-              <input type="text" id="profile-role" required>
-            </div>
-          </div>
-          <div class="form-group mt-3">
-            <label for="profile-avatar">URL da Foto</label>
-            <input type="url" id="profile-avatar" placeholder="https://...">
-          </div>
-          <div class="form-group mt-3">
-            <label for="profile-email">E-mail de acesso</label>
-            <input type="email" id="profile-email" required>
-          </div>
-          <div class="form-group mt-3">
-            <label for="profile-partner">Sócio / Segundo responsável</label>
-            <input type="text" id="profile-partner" placeholder="Nome do sócio ou responsável">
           </div>
         </div>
         <div class="modal-footer">

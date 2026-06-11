@@ -1,5 +1,5 @@
 // Speed Motoboy PWA — Service Worker
-const CACHE_NAME = 'speed-moto-v1';
+const CACHE_NAME = 'speed-moto-v2';
 
 // App shell assets to cache on install
 const SHELL_ASSETS = [
@@ -37,6 +37,24 @@ self.addEventListener('fetch', (event) => {
   // Always go to network for Supabase API calls
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (
+    event.request.mode === 'navigate' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.js')
+  ) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 

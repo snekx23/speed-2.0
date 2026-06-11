@@ -1752,7 +1752,100 @@ select {
 }
 
 .map-popup-card {
+  min-width: 300px;
   padding: 4px;
+}
+
+.map-popup-card h4 {
+  color: var(--color-text);
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.map-popup-card p {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.map-popup-dispatch {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.map-popup-dispatch label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.map-popup-select {
+  width: 100%;
+  height: 34px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.map-popup-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.map-popup-send-btn,
+.map-popup-remove-btn,
+.map-popup-settings-btn {
+  height: 34px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.map-popup-send-btn {
+  grid-column: 1 / -1;
+  background-color: var(--primary);
+  border: none;
+  color: var(--color-text-dark);
+}
+
+.map-popup-remove-btn {
+  background-color: var(--secondary);
+  border: 1px solid var(--border-color);
+  color: var(--color-text);
+  padding: 0 12px;
+}
+
+.map-popup-settings-btn {
+  width: 38px;
+  background-color: var(--secondary);
+  border: 1px solid var(--border-color);
+  color: var(--color-text);
+  padding: 0;
+}
+
+.map-popup-empty-actions {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.map-popup-empty-actions .map-popup-actions {
+  grid-template-columns: 1fr auto;
 }
 
 .leaflet-container {
@@ -2150,6 +2243,14 @@ select {
   gap: 10px;
 }
 
+.icon-action-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0 !important;
+  justify-content: center;
+  border-radius: var(--border-radius-sm);
+}
+
 textarea {
   width: 100%;
   resize: vertical;
@@ -2165,6 +2266,118 @@ textarea {
 
 textarea:focus {
   border-color: var(--border-color-focus);
+}
+
+.profile-modal-card {
+  max-width: 760px;
+}
+
+.profile-settings-form .modal-body {
+  padding: 0;
+}
+
+.profile-settings-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 0;
+}
+
+.profile-preview-panel {
+  background:
+    radial-gradient(circle at top, rgba(255, 0, 170, 0.16), transparent 58%),
+    var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 360px;
+}
+
+.profile-avatar-preview {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 0, 170, 0.55);
+  box-shadow: 0 0 0 8px rgba(255, 0, 170, 0.08);
+  background-color: var(--bg-input);
+}
+
+.profile-preview-panel strong {
+  margin-top: 18px;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.profile-preview-panel > span {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+}
+
+.profile-partner-note {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.profile-partner-note svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.profile-fields-panel {
+  padding: 28px;
+}
+
+.profile-fields-panel .form-group {
+  margin-bottom: 18px;
+}
+
+.profile-fields-panel .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.profile-fields-panel .input-wrapper input {
+  height: 46px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--color-text);
+  border-radius: var(--border-radius-md);
+  padding: 12px 14px 12px 44px;
+}
+
+.profile-fields-panel .input-wrapper input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 0, 170, 0.12);
+}
+
+@media (max-width: 720px) {
+  .profile-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-preview-panel {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .profile-fields-panel {
+    padding: 22px;
+  }
 }
 
 /* Topbar positioning fix for notification dropdown */
