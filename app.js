@@ -28,6 +28,13 @@ let ownerOverviewChart = null;
 let ownerFinancialChart = null;
 let clientOverviewChart = null;
 let ownerFleetMap = null;
+let selectedRiderId = null;
+let selectedMapRiderId = null;
+let clientRatings = [
+  { score: 5, title: 'Entrega rápida e cordial', comment: 'Motoboy chegou antes do prazo e manteve o pedido em perfeito estado.', date: 'Hoje, 14:20' },
+  { score: 5, title: 'Coleta sem espera', comment: 'Fluxo funcionou bem no horário de pico.', date: 'Ontem, 21:10' },
+  { score: 4, title: 'Boa comunicação', comment: 'Avisou sobre o trânsito e finalizou sem atraso relevante.', date: 'Terça, 19:35' }
+];
 
 // Async functions to sync with Supabase
 async function fetchFleet() {
@@ -135,15 +142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     loader.classList.add('hidden');
   }, 1200);
 
-  // Check if there is a persistent login session
+  // Always start at the access portal. Saved data is used only to prefill the selected profile.
   const savedProfile = localStorage.getItem('loggedInProfile');
-  if (savedProfile && mockData.credentials[savedProfile]) {
-    mockData.activeProfile = savedProfile;
-    await loginSuccess();
-  } else {
-    // Set default login credentials fields
-    switchLoginTab('owner');
-  }
+  switchLoginTab(savedProfile && mockData.credentials[savedProfile] ? savedProfile : 'owner');
   
   // Set Date display in header
   const options = { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' };
@@ -284,8 +285,12 @@ async function loginSuccess() {
   const profile = mockData.activeProfile;
   const creds = mockData.credentials[profile];
 
-  // Persist login profile in local storage
-  localStorage.setItem('loggedInProfile', profile);
+  const rememberInput = document.querySelector('.remember-me input');
+  if (rememberInput && rememberInput.checked) {
+    localStorage.setItem('loggedInProfile', profile);
+  } else {
+    localStorage.removeItem('loggedInProfile');
+  }
 
   // Set Profile info in sidebar
   document.getElementById('user-avatar').src = creds.avatar;
@@ -407,11 +412,17 @@ async function switchDashboardTab(targetTab) {
     renderFleetTable();
   } else if (targetTab === 'owner-financials') {
     initOwnerFinancialChart();
+  } else if (targetTab === 'owner-rider-payments') {
+    await fetchFleet();
+    await fetchClientHistory();
+    renderRiderPayments();
   } else if (targetTab === 'client-overview') {
     initClientOverviewChart();
   } else if (targetTab === 'client-history') {
     await fetchClientHistory();
     renderClientHistoryTable();
+  } else if (targetTab === 'client-ratings') {
+    renderClientRatings();
   }
 }
 
@@ -423,6 +434,8 @@ function renderFleetTable() {
   tbody.innerHTML = '';
   mockData.fleet.forEach(rider => {
     const tr = document.createElement('tr');
+    tr.className = 'clickable-row';
+    tr.onclick = () => openRiderActions(rider.id);
     tr.innerHTML = `
       <td>
         <div class="user-profile">
@@ -453,13 +466,107 @@ function renderFleetTable() {
         </div>
       </td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="viewRiderCredentials('${rider.id}')" style="gap: 6px; font-size: 0.78rem; padding: 5px 10px;">
-          <i data-lucide="key-round"></i> Ver Acesso
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openRiderActions('${rider.id}')" style="gap: 6px; font-size: 0.78rem; padding: 5px 10px;">
+          <i data-lucide="more-horizontal"></i> Funções
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+function parseMoneyBR(value) {
+  if (!value) return 0;
+  return Number(String(value).replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function formatMoneyBR(value) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function getCurrentWeekRangeLabel() {
+  const today = new Date();
+  const day = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = { day: '2-digit', month: '2-digit' };
+  return `${monday.toLocaleDateString('pt-BR', fmt)} a ${sunday.toLocaleDateString('pt-BR', fmt)}`;
+}
+
+function getCurrentWeekBounds() {
+  const today = new Date();
+  const day = today.getDay();
+  const monday = new Date(today);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(today.getDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
+}
+
+function parseOrderDate(dateText) {
+  const raw = String(dateText || '').trim();
+  const now = new Date();
+  if (!raw || raw.startsWith('Hoje')) return now;
+  if (raw.startsWith('Ontem')) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 1);
+    return d;
+  }
+  const brDate = raw.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  if (brDate) {
+    return new Date(Number(brDate[3] || now.getFullYear()), Number(brDate[2]) - 1, Number(brDate[1]));
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? now : parsed;
+}
+
+function isOrderInCurrentWeek(order) {
+  const { monday, sunday } = getCurrentWeekBounds();
+  const orderDate = parseOrderDate(order.date);
+  return orderDate >= monday && orderDate <= sunday;
+}
+
+function renderRiderPayments() {
+  const tbody = document.getElementById('rider-payments-table-body');
+  if (!tbody) return;
+
+  const totals = new Map();
+  mockData.fleet.forEach(rider => totals.set(rider.name, { rider, count: 0, total: 0 }));
+
+  mockData.clientHistory
+    .filter(order => order.status === 'Entregue' && isOrderInCurrentWeek(order))
+    .forEach(order => {
+      if (!totals.has(order.rider)) {
+        totals.set(order.rider, { rider: { name: order.rider, id: '—' }, count: 0, total: 0 });
+      }
+      const item = totals.get(order.rider);
+      item.count += 1;
+      item.total += parseMoneyBR(order.price);
+    });
+
+  const rows = Array.from(totals.values()).sort((a, b) => b.total - a.total);
+  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const totalEl = document.getElementById('rider-week-total');
+  const rangeEl = document.getElementById('rider-week-range');
+  if (totalEl) totalEl.innerText = formatMoneyBR(grandTotal);
+  if (rangeEl) rangeEl.innerText = getCurrentWeekRangeLabel();
+
+  tbody.innerHTML = rows.map(row => `
+    <tr>
+      <td>
+        <strong>${row.rider.name}</strong>
+        <p class="text-muted">${row.rider.id || '—'}</p>
+      </td>
+      <td>${row.count}</td>
+      <td><strong class="text-yellow">${formatMoneyBR(row.total)}</strong></td>
+      <td>${formatMoneyBR(row.count ? row.total / row.count : 0)}</td>
+      <td><span class="status-indicator ${row.total > 0 ? 'status-progress' : 'status-neutral'}">${row.total > 0 ? 'Programado para quinta' : 'Sem valor'}</span></td>
+    </tr>
+  `).join('');
 }
 
 // Render the client delivery history table
@@ -945,8 +1052,8 @@ function renderMapMarkers(centerCoords) {
     [-0.009, 0.005]
   ];
 
-  // Define motoboys matching our mockData.fleet
-  const ridersLocations = [
+  // Fallback demo riders when Supabase does not return fleet rows.
+  const demoRidersLocations = [
     { name: 'Carlos Oliveira', vehicle: 'Honda CG 160 Fan', plate: 'ABC-1234', status: 'A caminho da coleta', statusColor: '#ff00aa', offset: offsets[0] },
     { name: 'Marcos Santos', vehicle: 'Yamaha YZF-R3', plate: 'XYZ-9876', status: 'Em rota de entrega', statusColor: '#ff00aa', offset: offsets[1] },
     { name: 'Julia Costa', vehicle: 'Shineray XY 50', plate: 'MNO-5432', status: 'Disponível', statusColor: '#00aeef', offset: offsets[2] },
@@ -954,6 +1061,17 @@ function renderMapMarkers(centerCoords) {
     { name: 'Aline Dias', vehicle: 'Voltz EVS (Elétrica)', plate: 'ELE-2026', status: 'Em rota de entrega', statusColor: '#ff00aa', offset: offsets[4] },
     { name: 'Lucas Souza', vehicle: 'Yamaha Fazer 250', plate: 'DEF-4321', status: 'Disponível', statusColor: '#00aeef', offset: offsets[5] }
   ];
+  const ridersLocations = mockData.fleet.length
+    ? mockData.fleet.map((rider, index) => ({
+        id: rider.id,
+        name: rider.name,
+        vehicle: rider.vehicle,
+        plate: rider.plate,
+        status: rider.status,
+        statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#ff00aa' : '#00aeef'),
+        offset: offsets[index % offsets.length]
+      }))
+    : demoRidersLocations;
 
   // Add markers to map
   ridersLocations.forEach(rider => {
@@ -990,7 +1108,7 @@ function renderMapMarkers(centerCoords) {
           .map(d => `<option value="${d.id}">${d.id} - ${d.client} (${d.dist})</option>`)
           .join('');
 
-        const riderIdSafe = mockRider ? mockRider.id.replace('#', '') : '';
+        const riderIdSafe = mockRider ? mockRider.id.replace('#', '') : rider.name.replace(/\W/g, '');
 
         dispatchHtml = `
           <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
@@ -1002,12 +1120,20 @@ function renderMapMarkers(centerCoords) {
               </select>
               <button onclick="handlePopupDispatch('${rider.name}')" style="background-color: var(--primary); border: none; color: var(--color-text-dark); font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Enviar</button>
             </div>
+            ${mockRider ? `<div style="display: flex; gap: 6px; margin-top: 8px;">
+              <button onclick="openRemoveTeleModal('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Remover tele</button>
+              <button onclick="openRiderActions('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Funções</button>
+            </div>` : ''}
           </div>
         `;
       } else {
         dispatchHtml = `
           <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; font-size: 0.75rem; color: var(--color-text-muted); text-align: center;">
             Nenhuma tele pendente.
+            ${mockRider ? `<div style="display: flex; gap: 6px; margin-top: 8px;">
+              <button onclick="openRemoveTeleModal('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Remover tele</button>
+              <button onclick="openRiderActions('${mockRider.id}')" style="flex: 1; background: var(--secondary); border: 1px solid var(--border-color); color: var(--color-text); font-size: 0.72rem; padding: 6px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;">Funções</button>
+            </div>` : ''}
           </div>
         `;
       }
@@ -1024,6 +1150,10 @@ function renderMapMarkers(centerCoords) {
     `;
 
     marker.bindPopup(popupContent);
+    if (mockRider && selectedMapRiderId === mockRider.id) {
+      ownerFleetMap.setView(riderCoords, 16);
+      setTimeout(() => marker.openPopup(), 150);
+    }
   });
 }
 
@@ -1384,6 +1514,214 @@ function viewRiderCredentials(riderId) {
   openCredentialCard(rider.id, rider.name, rider.pin || '(sem PIN)');
 }
 
+function getActiveOrdersForRider(rider) {
+  if (!rider) return [];
+  return mockData.clientHistory.filter(order => order.rider === rider.name && order.status !== 'Entregue' && order.status !== 'Removida');
+}
+
+function openRemoveTeleModal(riderId) {
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  if (!rider) return;
+
+  selectedRiderId = riderId;
+  const modal = document.getElementById('modal-remove-tele');
+  const list = document.getElementById('remove-tele-list');
+  const label = document.getElementById('remove-tele-rider-label');
+  const orders = getActiveOrdersForRider(rider);
+
+  label.innerText = orders.length
+    ? `Teles ativas de ${rider.name}. Escolha qual remover.`
+    : `${rider.name} não possui tele ativa no momento.`;
+
+  list.innerHTML = orders.length ? orders.map(order => `
+    <div class="list-item">
+      <div class="item-info">
+        <div class="item-icon-avatar bg-yellow"><i data-lucide="route" class="text-black"></i></div>
+        <div>
+          <h4>${order.id}</h4>
+          <p class="text-muted">${order.address}</p>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="removeTeleFromRider('${order.id}', '${rider.id}')">
+        <i data-lucide="list-x"></i> Remover
+      </button>
+    </div>
+  `).join('') : `
+    <div style="text-align: center; padding: 28px; color: var(--color-text-muted);">
+      <i data-lucide="check-circle" style="width: 36px; height: 36px; color: var(--success); margin-bottom: 8px;"></i>
+      <p>Nenhuma tele para remover.</p>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeRemoveTeleModal(event) {
+  const modal = document.getElementById('modal-remove-tele');
+  if (event && event.target !== modal) return;
+  modal.classList.add('hidden');
+}
+
+async function removeTeleFromRider(deliveryId, riderId) {
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  const order = mockData.clientHistory.find(item => item.id === deliveryId);
+  if (!rider || !order) return;
+
+  if (!confirm(`Remover a tele ${deliveryId} de ${rider.name} e devolver para pendentes?`)) return;
+
+  const pendingPayload = {
+    id: order.id,
+    client: 'Burger do Chef',
+    dest_name: order.destName || 'Cliente Express',
+    address: order.address,
+    dist: order.dist,
+    price: order.price,
+    payment: 'A combinar',
+    cargo: 'Pedido'
+  };
+
+  if (supabaseClient) {
+    const { error: pendingError } = await supabaseClient
+      .from('pending_deliveries')
+      .upsert([pendingPayload]);
+    if (pendingError) {
+      alert('Erro ao devolver a tele para pendentes.');
+      return;
+    }
+
+    const { error: historyError } = await supabaseClient
+      .from('client_history')
+      .delete()
+      .eq('id', deliveryId);
+    if (historyError) {
+      alert('Erro ao remover a tele do histórico ativo.');
+      return;
+    }
+
+    const remainingOrders = getActiveOrdersForRider(rider).filter(item => item.id !== deliveryId);
+    if (remainingOrders.length === 0) {
+      await supabaseClient
+        .from('fleet')
+        .update({ status: 'Disponível', status_class: 'status-success', delivery: 'Nenhuma' })
+        .eq('id', riderId);
+    }
+  }
+
+  await fetchPendingDeliveries();
+  await fetchFleet();
+  await fetchClientHistory();
+  renderPendingDeliveries();
+  renderActiveDeliveries();
+  renderFleetTable();
+  renderRiderPayments();
+
+  if (ownerFleetMap) {
+    const center = ownerFleetMap.getCenter();
+    renderMapMarkers([center.lat, center.lng]);
+  }
+
+  closeRemoveTeleModal();
+  showToastNotification(`Tele ${deliveryId} removida de ${rider.name}.`);
+}
+
+function openRiderActions(riderId) {
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  if (!rider) return;
+
+  selectedRiderId = riderId;
+  document.getElementById('rider-action-name').innerText = rider.name;
+  document.getElementById('rider-action-id').innerText = rider.id;
+  document.getElementById('rider-action-status').innerText = rider.status;
+  document.getElementById('modal-rider-actions').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeRiderActions(event) {
+  const modal = document.getElementById('modal-rider-actions');
+  if (event && event.target !== modal) return;
+  modal.classList.add('hidden');
+}
+
+function locateSelectedRider() {
+  if (!selectedRiderId) return;
+  selectedMapRiderId = selectedRiderId;
+  closeRiderActions();
+  switchDashboardTab('owner-fleet-map');
+}
+
+function openCredentialsForSelectedRider() {
+  if (!selectedRiderId) return;
+  closeRiderActions();
+  viewRiderCredentials(selectedRiderId);
+}
+
+function openRemoveTeleForSelectedRider() {
+  if (!selectedRiderId) return;
+  closeRiderActions();
+  openRemoveTeleModal(selectedRiderId);
+}
+
+function openEditSelectedRider() {
+  if (!selectedRiderId) return;
+  const rider = mockData.fleet.find(r => r.id === selectedRiderId);
+  if (!rider) return;
+
+  document.getElementById('edit-rider-id').value = rider.id;
+  document.getElementById('edit-rider-name').value = rider.name || '';
+  document.getElementById('edit-rider-pin').value = rider.pin || '';
+  document.getElementById('edit-rider-vehicle').value = rider.vehicle || '';
+  document.getElementById('edit-rider-plate').value = rider.plate || '';
+  document.getElementById('edit-rider-status').value = rider.status || 'Disponível';
+  document.getElementById('edit-rider-battery').value = rider.battery || '';
+  closeRiderActions();
+  document.getElementById('modal-edit-rider').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeEditRider(event) {
+  const modal = document.getElementById('modal-edit-rider');
+  if (event && event.target !== modal) return;
+  modal.classList.add('hidden');
+}
+
+function getStatusClass(status) {
+  if (status === 'Disponível') return 'status-success';
+  if (status === 'Em Descanso') return 'status-neutral';
+  return 'status-progress';
+}
+
+async function submitEditRider(event) {
+  event.preventDefault();
+  const riderId = document.getElementById('edit-rider-id').value;
+  const status = document.getElementById('edit-rider-status').value;
+  const payload = {
+    name: document.getElementById('edit-rider-name').value.trim(),
+    pin: document.getElementById('edit-rider-pin').value.trim(),
+    vehicle: document.getElementById('edit-rider-vehicle').value.trim(),
+    plate: document.getElementById('edit-rider-plate').value.trim().toUpperCase(),
+    status,
+    status_class: getStatusClass(status),
+    battery: document.getElementById('edit-rider-battery').value.trim()
+  };
+
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from('fleet')
+      .update(payload)
+      .eq('id', riderId);
+    if (error) {
+      alert('Erro ao editar motoboy: ' + error.message);
+      return;
+    }
+  }
+
+  await fetchFleet();
+  renderFleetTable();
+  closeEditRider();
+  showToastNotification('Dados do motoboy atualizados.');
+}
+
 /* ================= NOTIFICATION BELL ================= */
 
 function toggleNotifications() {
@@ -1433,6 +1771,7 @@ async function submitRegisterMotoboy(event) {
   const name     = document.getElementById('mb-name').value.trim();
   const vehicle  = document.getElementById('mb-vehicle').value.trim();
   const plate    = document.getElementById('mb-plate').value.trim().toUpperCase();
+  const phone    = document.getElementById('mb-phone').value.trim();
   const battery  = document.getElementById('mb-battery').value;
   const pin      = document.getElementById('mb-pin').value.trim();
 
@@ -1440,8 +1779,27 @@ async function submitRegisterMotoboy(event) {
   submitBtn.disabled = true;
   submitBtn.querySelector('span').innerText = 'Cadastrando...';
 
-  // Generate sequential ID
-  const newId = await getNextRiderID();
+  const phoneDigits = phone.replace(/\D/g, '');
+  if (phoneDigits.length < 4) {
+    const errorEl = document.getElementById('register-motoboy-error');
+    document.getElementById('register-motoboy-error-text').innerText = 'Informe um telefone válido para gerar o ID.';
+    errorEl.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.querySelector('span').innerText = 'Cadastrar Motoboy';
+    return;
+  }
+
+  // ID do motoboy: últimos 4 números do telefone pessoal.
+  const newId = '#MB-' + phoneDigits.slice(-4);
+  const existingRider = mockData.fleet.find(rider => rider.id === newId);
+  if (existingRider) {
+    const errorEl = document.getElementById('register-motoboy-error');
+    document.getElementById('register-motoboy-error-text').innerText = `Já existe motoboy com o ID ${newId}. Verifique o telefone.`;
+    errorEl.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.querySelector('span').innerText = 'Cadastrar Motoboy';
+    return;
+  }
 
   const newRider = {
     id: newId,
@@ -1522,6 +1880,82 @@ function showToastNotification(message) {
   }, 4000);
 }
 
+function renderClientRatings() {
+  const list = document.getElementById('client-ratings-list');
+  if (!list) return;
+
+  list.innerHTML = clientRatings.map(item => `
+    <div class="list-item">
+      <div class="item-info">
+        <div class="item-icon-avatar bg-yellow"><i data-lucide="star" class="text-black"></i></div>
+        <div>
+          <h4>${item.title}</h4>
+          <p class="text-muted">${item.comment}</p>
+          <p class="text-muted text-xs" style="margin-top: 4px;">${item.date}</p>
+        </div>
+      </div>
+      <div class="courier-rating">
+        <i data-lucide="star" class="fill-yellow text-yellow"></i>
+        <strong>${item.score}</strong>
+      </div>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function submitClientRating(event) {
+  event.preventDefault();
+  const score = Number(document.getElementById('rating-score').value);
+  const comment = document.getElementById('rating-comment').value.trim();
+  clientRatings.unshift({
+    score,
+    title: score >= 4 ? 'Nova avaliação positiva' : 'Avaliação precisa de atenção',
+    comment: comment || 'Sem comentário adicional.',
+    date: 'Agora'
+  });
+  document.getElementById('rating-comment').value = '';
+  renderClientRatings();
+  showToastNotification('Avaliação enviada.');
+}
+
+function openProfileSettings() {
+  const profile = mockData.activeProfile;
+  const creds = mockData.credentials[profile];
+  document.getElementById('profile-name').value = creds.name || '';
+  document.getElementById('profile-role').value = creds.role || '';
+  document.getElementById('profile-avatar').value = creds.avatar || '';
+  document.getElementById('profile-email').value = creds.email || '';
+  document.getElementById('profile-partner').value = creds.partner || '';
+  document.getElementById('modal-profile-settings').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeProfileSettings(event) {
+  const modal = document.getElementById('modal-profile-settings');
+  if (event && event.target !== modal) return;
+  modal.classList.add('hidden');
+}
+
+function submitProfileSettings(event) {
+  event.preventDefault();
+  const profile = mockData.activeProfile;
+  const creds = mockData.credentials[profile];
+  creds.name = document.getElementById('profile-name').value.trim();
+  creds.role = document.getElementById('profile-role').value.trim();
+  creds.avatar = document.getElementById('profile-avatar').value.trim() || creds.avatar;
+  creds.email = document.getElementById('profile-email').value.trim();
+  creds.partner = document.getElementById('profile-partner').value.trim();
+
+  document.getElementById('user-avatar').src = creds.avatar;
+  document.getElementById('user-display-name').innerText = creds.name;
+  document.getElementById('user-display-sub').innerText = creds.partner
+    ? `${creds.role} • Sócio: ${creds.partner}`
+    : creds.role;
+
+  closeProfileSettings();
+  showToastNotification('Perfil atualizado nesta sessão.');
+}
+
 /* ================= PWA INSTALLATION & MODAL CONTROLS ================= */
 
 let deferredPrompt = null;
@@ -1567,5 +2001,3 @@ window.closeDownloadApp = function(event) {
   }
   modal.classList.add('hidden');
 };
-
-

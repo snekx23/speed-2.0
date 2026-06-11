@@ -171,6 +171,9 @@
             <button class="nav-item" data-tab="owner-financials" onclick="switchDashboardTab('owner-financials')">
               <i data-lucide="dollar-sign"></i> Financeiro
             </button>
+            <button class="nav-item" data-tab="owner-rider-payments" onclick="switchDashboardTab('owner-rider-payments')">
+              <i data-lucide="receipt"></i> Repasse Semanal
+            </button>
           </div>
 
           <div class="nav-group" id="nav-client-group">
@@ -179,6 +182,9 @@
             </button>
             <button class="nav-item" data-tab="client-history" onclick="switchDashboardTab('client-history')">
               <i data-lucide="list-ordered"></i> Histórico Entregas
+            </button>
+            <button class="nav-item" data-tab="client-ratings" onclick="switchDashboardTab('client-ratings')">
+              <i data-lucide="star"></i> Avaliações
             </button>
           </div>
 
@@ -199,7 +205,7 @@
         </nav>
 
         <div class="sidebar-footer">
-          <div class="user-profile">
+          <div class="user-profile clickable-profile" onclick="openProfileSettings()">
             <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="User Avatar" class="avatar" id="user-avatar">
             <div class="user-info">
               <h4 id="user-display-name">Gustavo Souza</h4>
@@ -470,12 +476,70 @@
                         <th>Corrida Atual</th>
                         <th>Bateria/Combustível</th>
                         <th>Classificação</th>
-                        <th>Acesso</th>
+                        <th>Ações</th>
                       </tr>
                     </thead>
                     <tbody id="owner-fleet-table-body">
                       <!-- Rendered by JS -->
                     </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Owner Rider Weekly Payments -->
+          <div id="tab-owner-rider-payments" class="dashboard-tab-content">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Semana Atual</span>
+                  <i data-lucide="calendar-days" class="text-blue"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="rider-week-range">Segunda a Domingo</h3>
+                  <p class="text-muted">Acumula todas as teles concluídas da semana.</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Dia de Pagamento</span>
+                  <i data-lucide="badge-dollar-sign" class="text-green"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>Quinta-feira</h3>
+                  <p class="text-muted">Repasse calculado sobre segunda a domingo.</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Total a Repassar</span>
+                  <i data-lucide="wallet" class="text-yellow"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="rider-week-total">R$ 0,00</h3>
+                  <p class="text-muted">Baseado nas entregas finalizadas.</p>
+                </div>
+              </div>
+            </div>
+            <div class="card mt-4">
+              <div class="card-header">
+                <h3>Valores Feitos por Motoboy</h3>
+                <p class="text-muted">Resumo semanal por entregador, com pagamento programado para quinta-feira.</p>
+              </div>
+              <div class="card-body no-padding">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Motoboy</th>
+                        <th>Teles Concluídas</th>
+                        <th>Valor Acumulado</th>
+                        <th>Média por Tele</th>
+                        <th>Status Pagamento</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rider-payments-table-body"></tbody>
                   </table>
                 </div>
               </div>
@@ -713,6 +777,79 @@
                       <!-- Rendered dynamically -->
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Client Ratings -->
+          <div id="tab-client-ratings" class="dashboard-tab-content">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Nota Geral</span>
+                  <i data-lucide="star" class="text-yellow"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>4.92 / 5</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> Excelente experiência de entrega</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Pontualidade</span>
+                  <i data-lucide="clock" class="text-blue"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>97%</h3>
+                  <p class="text-muted">Pedidos dentro do prazo prometido.</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Embalagem</span>
+                  <i data-lucide="package-check" class="text-green"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3>89%</h3>
+                  <p class="text-muted">Avaliação dos clientes finais.</p>
+                </div>
+              </div>
+            </div>
+            <div class="dashboard-grid mt-4">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Avaliações Recentes</h3>
+                </div>
+                <div class="card-body">
+                  <div id="client-ratings-list" class="list-container"></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <h3>Enviar Avaliação</h3>
+                  <p class="text-muted">Registre feedback sobre atendimento, coleta e entrega.</p>
+                </div>
+                <div class="card-body">
+                  <form onsubmit="submitClientRating(event)">
+                    <div class="form-group">
+                      <label for="rating-score">Nota</label>
+                      <select id="rating-score" required>
+                        <option value="5">5 - Excelente</option>
+                        <option value="4">4 - Bom</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="2">2 - Ruim</option>
+                        <option value="1">1 - Péssimo</option>
+                      </select>
+                    </div>
+                    <div class="form-group mt-3">
+                      <label for="rating-comment">Comentário</label>
+                      <textarea id="rating-comment" rows="4" placeholder="Descreva o que aconteceu na entrega"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block mt-3">
+                      <i data-lucide="send"></i> Enviar Avaliação
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -1038,6 +1175,146 @@
 
   </div>
 
+  <!-- Modal: Remover Tele do Motoboy -->
+  <div id="modal-remove-tele" class="modal-overlay hidden" onclick="closeRemoveTeleModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="list-x" class="inline-icon text-yellow"></i> Remover Tele</h3>
+        <button class="modal-close-btn" onclick="closeRemoveTeleModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" id="remove-tele-rider-label" style="margin-bottom: 16px;">Escolha qual tele remover deste motoboy.</p>
+        <div id="remove-tele-list" class="list-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ações do Motoboy -->
+  <div id="modal-rider-actions" class="modal-overlay hidden" onclick="closeRiderActions(event)">
+    <div class="modal-card" style="max-width: 460px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="bike" class="inline-icon text-yellow"></i> Motoboy</h3>
+        <button class="modal-close-btn" onclick="closeRiderActions()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="credential-card" style="margin-bottom: 16px;">
+          <div class="cred-row">
+            <span class="cred-label">Nome</span>
+            <strong id="rider-action-name" class="cred-value">—</strong>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">ID</span>
+            <strong id="rider-action-id" class="cred-value text-yellow">—</strong>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">Status</span>
+            <strong id="rider-action-status" class="cred-value">—</strong>
+          </div>
+        </div>
+        <div class="rider-action-grid">
+          <button class="btn btn-secondary" onclick="locateSelectedRider()"><i data-lucide="map-pin"></i> Localizar</button>
+          <button class="btn btn-secondary" onclick="openEditSelectedRider()"><i data-lucide="pencil"></i> Editar Dados</button>
+          <button class="btn btn-secondary" onclick="openCredentialsForSelectedRider()"><i data-lucide="key-round"></i> Ver Acesso</button>
+          <button class="btn btn-secondary" onclick="openRemoveTeleForSelectedRider()"><i data-lucide="list-x"></i> Remover Tele</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Motoboy -->
+  <div id="modal-edit-rider" class="modal-overlay hidden" onclick="closeEditRider(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="pencil" class="inline-icon text-yellow"></i> Editar Motoboy</h3>
+        <button class="modal-close-btn" onclick="closeEditRider()"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitEditRider(event)">
+        <div class="modal-body">
+          <input type="hidden" id="edit-rider-id">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="edit-rider-name">Nome</label>
+              <input type="text" id="edit-rider-name" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="edit-rider-pin">PIN</label>
+              <input type="text" id="edit-rider-pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric">
+            </div>
+          </div>
+          <div class="form-row mt-3">
+            <div class="form-group flex-1">
+              <label for="edit-rider-vehicle">Veículo</label>
+              <input type="text" id="edit-rider-vehicle" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="edit-rider-plate">Placa</label>
+              <input type="text" id="edit-rider-plate" required>
+            </div>
+          </div>
+          <div class="form-row mt-3">
+            <div class="form-group flex-1">
+              <label for="edit-rider-status">Status</label>
+              <select id="edit-rider-status">
+                <option value="Disponível">Disponível</option>
+                <option value="A caminho da coleta">A caminho da coleta</option>
+                <option value="Em rota de entrega">Em rota de entrega</option>
+                <option value="Em Descanso">Em Descanso</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="edit-rider-battery">Combustível / Bateria</label>
+              <input type="text" id="edit-rider-battery" placeholder="100%">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeEditRider()">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Perfil e Conta -->
+  <div id="modal-profile-settings" class="modal-overlay hidden" onclick="closeProfileSettings(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i data-lucide="user-cog" class="inline-icon text-yellow"></i> Perfil e Conta</h3>
+        <button class="modal-close-btn" onclick="closeProfileSettings()"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitProfileSettings(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="profile-name">Nome</label>
+              <input type="text" id="profile-name" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="profile-role">Cargo / Função</label>
+              <input type="text" id="profile-role" required>
+            </div>
+          </div>
+          <div class="form-group mt-3">
+            <label for="profile-avatar">URL da Foto</label>
+            <input type="url" id="profile-avatar" placeholder="https://...">
+          </div>
+          <div class="form-group mt-3">
+            <label for="profile-email">E-mail de acesso</label>
+            <input type="email" id="profile-email" required>
+          </div>
+          <div class="form-group mt-3">
+            <label for="profile-partner">Sócio / Segundo responsável</label>
+            <input type="text" id="profile-partner" placeholder="Nome do sócio ou responsável">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProfileSettings()">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Salvar Perfil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal: Card de Credenciais do Motoboy -->
   <div id="modal-credentials" class="modal-overlay hidden" onclick="closeCredentials(event)">
     <div class="modal-card" style="max-width: 400px;" onclick="event.stopPropagation()">
@@ -1119,7 +1396,7 @@
               <label for="mb-phone">Telefone / WhatsApp</label>
               <div class="input-wrapper">
                 <i data-lucide="phone" class="input-icon"></i>
-                <input type="tel" id="mb-phone" placeholder="Ex: (11) 99999-9999">
+                <input type="tel" id="mb-phone" required placeholder="Ex: (11) 99999-9999">
               </div>
             </div>
             <div class="form-group flex-1">
