@@ -46,7 +46,7 @@ async function fetchFleet() {
       .order('id', { ascending: true });
     if (error) throw error;
     mockData.fleet = data.map(item => ({
-      id: item.id,
+      id: String(item.id),
       name: item.name,
       vehicle: item.vehicle,
       plate: item.plate,
@@ -89,7 +89,7 @@ async function fetchClientHistory() {
       .order('id', { ascending: false });
     if (error) throw error;
     mockData.clientHistory = data.map(item => ({
-      id: item.id,
+      id: String(item.id),
       destName: item.dest_name,
       address: item.address,
       rider: item.rider,
@@ -113,7 +113,7 @@ async function fetchPendingDeliveries() {
       .order('id', { ascending: true });
     if (error) throw error;
     mockData.pendingDeliveries = data.map(item => ({
-      id: item.id,
+      id: String(item.id),
       client: item.client,
       destName: item.dest_name,
       address: item.address,
@@ -398,15 +398,7 @@ async function switchDashboardTab(targetTab) {
     await fetchFleet();
     initOwnerFleetMap();
   } else if (targetTab === 'owner-teles') {
-    try {
-      await fetchPendingDeliveries();
-      await fetchFleet();
-      await fetchClientHistory();
-      renderPendingDeliveries();
-      renderActiveDeliveries();
-    } catch (err) {
-      console.error('Erro ao carregar aba Gestão de Teles:', err);
-    }
+    await loadTelesManagement();
   } else if (targetTab === 'owner-fleet') {
     await fetchFleet();
     renderFleetTable();
@@ -424,6 +416,67 @@ async function switchDashboardTab(targetTab) {
   } else if (targetTab === 'client-ratings') {
     renderClientRatings();
   }
+}
+
+async function loadTelesManagement() {
+  setTelesLoadingState();
+
+  try {
+    await Promise.all([
+      fetchPendingDeliveries(),
+      fetchFleet(),
+      fetchClientHistory()
+    ]);
+  } catch (err) {
+    console.error('Erro ao carregar dados da Gestão de Teles:', err);
+    showTelesLoadError();
+    return;
+  }
+
+  renderPendingDeliveries();
+  renderActiveDeliveries();
+}
+
+function setTelesLoadingState() {
+  const pendingContainer = document.getElementById('pending-deliveries-container');
+  const activeContainer = document.getElementById('active-deliveries-container');
+  const pendingBadge = document.getElementById('pending-count-badge');
+  const activeBadge = document.getElementById('active-count-badge');
+
+  if (pendingBadge) pendingBadge.innerText = 'carregando...';
+  if (activeBadge) activeBadge.innerText = 'carregando...';
+
+  const loadingCard = `
+    <div class="tele-state-card">
+      <div class="tele-state-spinner"></div>
+      <p>Carregando teles...</p>
+    </div>
+  `;
+
+  if (pendingContainer) pendingContainer.innerHTML = loadingCard;
+  if (activeContainer) activeContainer.innerHTML = loadingCard;
+}
+
+function showTelesLoadError() {
+  const pendingContainer = document.getElementById('pending-deliveries-container');
+  const activeContainer = document.getElementById('active-deliveries-container');
+  const pendingBadge = document.getElementById('pending-count-badge');
+  const activeBadge = document.getElementById('active-count-badge');
+
+  if (pendingBadge) pendingBadge.innerText = 'erro';
+  if (activeBadge) activeBadge.innerText = 'erro';
+
+  const errorCard = `
+    <div class="tele-state-card tele-state-error">
+      <i data-lucide="alert-triangle"></i>
+      <p>Não foi possível carregar as teles.</p>
+      <button class="btn btn-secondary btn-sm" onclick="loadTelesManagement()">Tentar novamente</button>
+    </div>
+  `;
+
+  if (pendingContainer) pendingContainer.innerHTML = errorCard;
+  if (activeContainer) activeContainer.innerHTML = errorCard;
+  lucide.createIcons();
 }
 
 // Render the owner fleet table with mock data

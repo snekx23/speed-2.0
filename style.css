@@ -1893,6 +1893,7 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  min-height: 120px;
 }
 
 .pending-card {
@@ -1978,6 +1979,48 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  min-height: 120px;
+}
+
+.tele-state-card {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  background-color: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-md);
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.tele-state-card p {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.tele-state-card svg {
+  color: var(--warning);
+  width: 30px;
+  height: 30px;
+}
+
+.tele-state-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+
+.tele-state-error {
+  border-color: rgba(239, 68, 68, 0.35);
+  background-color: rgba(239, 68, 68, 0.06);
 }
 
 .active-card {
