@@ -11,3 +11,10 @@ unsafe/
 
 # Setup scripts with credentials
 setup-supabase.ps1
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
