@@ -1548,7 +1548,7 @@ function togglePinVisibility() {
 }
 
 function copyCredentials() {
-  const text = `Speed Logística — Acesso Motoboy\nNome: ${_currentCreds.name}\nID: ${_currentCreds.id}\nPIN: ${_currentCreds.pin}\nAcesso: https://speed-zztn.vercel.app/motoboy.html`;
+  const text = `Speed Logística — Acesso Motoboy\nNome: ${_currentCreds.name}\nID: ${_currentCreds.id}\nPIN: ${_currentCreds.pin}\nAcesso: https://speed01.guigui-couto23.workers.dev/motoboy.html`;
   navigator.clipboard.writeText(text).then(() => {
     showToastNotification('Credenciais copiadas!');
   }).catch(() => {
@@ -1565,7 +1565,7 @@ function copyCredentials() {
 
 function shareWhatsApp() {
   const text = encodeURIComponent(
-    `*Speed Logística — Seu Acesso*\n\nOlá, ${_currentCreds.name}! Suas credenciais de acesso ao app de motoboy são:\n\n*ID:* ${_currentCreds.id}\n*PIN:* ${_currentCreds.pin}\n\n*Link:* https://speed-zztn.vercel.app/motoboy.html\n\n_Não compartilhe seu PIN com ninguém._`
+    `*Speed Logística — Seu Acesso*\n\nOlá, ${_currentCreds.name}! Suas credenciais de acesso ao app de motoboy são:\n\n*ID:* ${_currentCreds.id}\n*PIN:* ${_currentCreds.pin}\n\n*Link:* https://speed01.guigui-couto23.workers.dev/motoboy.html\n\n_Não compartilhe seu PIN com ninguém._`
   );
   window.open(`https://wa.me/?text=${text}`, '_blank');
 }
