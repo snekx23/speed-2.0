@@ -9,6 +9,7 @@ let riderMap = null;      // Leaflet map instance
 let realtimeChannel = null;
 let watchId = null;       // geolocation watch ID
 let lastPosition = null;  // { lat, lng }
+let knownActiveTeleIds = null; // IDs of active deliveries to play chime on new arrivals
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ function handleMotoLogout() {
   if (realtimeChannel) db.removeChannel(realtimeChannel);
   if (watchId) navigator.geolocation.clearWatch(watchId);
   currentRider = null;
+  knownActiveTeleIds = null;
   document.getElementById('pwa-app').classList.add('hidden');
   document.getElementById('pwa-login').classList.remove('hidden');
   document.getElementById('moto-id').value = '';
@@ -316,10 +318,22 @@ async function loadMyDeliveries() {
     return;
   }
 
-  // Update map floating badges and action buttons
-  updateMapOverlays(data || []);
+  const activeDeliveries = data || [];
+  const currentIds = activeDeliveries.map(t => t.id);
 
-  renderTeleCards(data || []);
+  // If this is not the first check and we have newly assigned teles, play sound notification
+  if (knownActiveTeleIds !== null) {
+    const newTeles = currentIds.filter(id => !knownActiveTeleIds.includes(id));
+    if (newTeles.length > 0) {
+      playNotificationSound();
+    }
+  }
+  knownActiveTeleIds = currentIds;
+
+  // Update map floating badges and action buttons
+  updateMapOverlays(activeDeliveries);
+
+  renderTeleCards(activeDeliveries);
 }
 
 function renderTeleCards(deliveries) {
@@ -463,10 +477,9 @@ function initRiderMap() {
   const mapEl = document.getElementById('pwa-map');
   if (!mapEl) return;
 
-  riderMap = L.map('pwa-map', { zoomControl: true }).setView([-23.55052, -46.633308], 14);
+  riderMap = L.map('pwa-map', { zoomControl: true, attributionControl: false }).setView([-23.55052, -46.633308], 14);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     maxZoom: 20
   }).addTo(riderMap);
 
@@ -517,7 +530,7 @@ function showPWAToast(msg) {
   if (!container) {
     container = document.createElement('div');
     container.id = 'pwa-toast-container';
-    container.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:360px;';
+    container.style.cssText = 'position:fixed;bottom:170px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:360px;';
     document.body.appendChild(container);
   }
 
@@ -531,6 +544,77 @@ function showPWAToast(msg) {
     toast.style.transition = 'opacity 0.3s';
     setTimeout(() => toast.remove(), 300);
   }, 3500);
+}
+
+// ─── NOTIFICATION AUDIO SYNTHESIZER ──────────────────────────────────────────
+
+let audioContextUnlocked = false;
+function unlockAudioContext() {
+  if (audioContextUnlocked) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        audioContextUnlocked = true;
+        document.removeEventListener('click', unlockAudioContext);
+        document.removeEventListener('touchstart', unlockAudioContext);
+      });
+    } else {
+      audioContextUnlocked = true;
+      document.removeEventListener('click', unlockAudioContext);
+      document.removeEventListener('touchstart', unlockAudioContext);
+    }
+  } catch (e) {
+    console.error('AudioContext unlock failed:', e);
+  }
+}
+document.addEventListener('click', unlockAudioContext);
+document.addEventListener('touchstart', unlockAudioContext);
+
+function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    
+    const now = ctx.currentTime;
+    
+    // Play a crisp bell chime 3 times (constant bell ringing)
+    for (let i = 0; i < 3; i++) {
+      const startTime = now + i * 0.75; // 750ms spacing between rings
+      const duration = 0.55;
+      
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, startTime); // D5
+      
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, startTime); // A5 (consonant fifth)
+      
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.55, startTime + 0.04); // Quick attack
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration); // Smooth decay
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start(startTime);
+      osc1.stop(startTime + duration);
+      osc2.start(startTime);
+      osc2.stop(startTime + duration);
+    }
+  } catch (error) {
+    console.error('Error playing notification sound:', error);
+  }
 }
 
 // ─── PROFILE AND STATS HELPERS ───────────────────────────────────────────────
