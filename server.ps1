@@ -12,11 +12,12 @@ try {
         # URL decode path to handle spaces or special characters
         $path = [uri]::UnescapeDataString($path)
         if ($path -eq "/") { $path = "/index.html" }
-        $localPath = Join-Path (Get-Location) $path.TrimStart('/')
-        
-        # Security check to prevent path traversal outside of the current directory
+        $webRoot = Join-Path (Get-Location) "public"
+        $localPath = Join-Path $webRoot $path.TrimStart('/')
+
+        # Security check to prevent path traversal outside of the web root
         $resolvedPath = [System.IO.Path]::GetFullPath($localPath)
-        $currentDir = [System.IO.Path]::GetFullPath((Get-Location).Path)
+        $currentDir = [System.IO.Path]::GetFullPath($webRoot)
         if (-not $resolvedPath.StartsWith($currentDir)) {
             $response.StatusCode = 403
             $buf = [System.Text.Encoding]::UTF8.GetBytes("403 Forbidden")
