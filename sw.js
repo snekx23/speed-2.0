@@ -1,5 +1,5 @@
 // Speed Motoboy PWA — Service Worker
-const CACHE_NAME = 'speed-moto-v3';
+const CACHE_NAME = 'speed-moto-v4';
 
 // App shell assets to cache on install
 const SHELL_ASSETS = [
@@ -33,6 +33,11 @@ self.addEventListener('activate', (event) => {
 // Fetch: network-first for API calls, cache-first for assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Only handle http(s) requests — ignore chrome-extension:// and others
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
 
   // Always go to network for Supabase API calls
   if (url.hostname.includes('supabase.co')) {

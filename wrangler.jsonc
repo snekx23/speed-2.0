@@ -5,6 +5,8 @@
   "compatibility_date": "2025-06-01",
 
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   }
 }
