@@ -530,7 +530,7 @@ function showPWAToast(msg) {
   if (!container) {
     container = document.createElement('div');
     container.id = 'pwa-toast-container';
-    container.style.cssText = 'position:fixed;bottom:170px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:360px;';
+    container.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:360px;';
     document.body.appendChild(container);
   }
 
