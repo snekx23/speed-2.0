@@ -102,6 +102,8 @@ function handleMotoLogout() {
   document.getElementById('pwa-login').classList.remove('hidden');
   document.getElementById('moto-id').value = '';
   document.getElementById('moto-pin').value = '';
+  // Close drawer if open
+  togglePWADrawer(false);
   lucide.createIcons();
 }
 
@@ -115,8 +117,17 @@ function showApp() {
   document.getElementById('pwa-rider-name').innerText = currentRider.name || 'Motoboy';
   setRiderStatusBadge(currentRider.status || 'Disponível');
 
-  // Switch to teles tab by default
-  switchPWATab('teles');
+  // Fill drawer info
+  const drawerName = document.getElementById('drawer-rider-name');
+  const drawerId = document.getElementById('drawer-rider-id');
+  if (drawerName) drawerName.innerText = currentRider.name || 'Motoboy';
+  if (drawerId) drawerId.innerText = currentRider.id || '#MB-0000';
+
+  // Initialize connection button state
+  updateConnectionButtonState(currentRider.status || 'Disponível');
+
+  // Switch to map tab by default
+  switchPWATab('map');
   subscribeRealtime();
   lucide.createIcons();
 }
@@ -130,14 +141,107 @@ function setRiderStatusBadge(status) {
   else el.classList.add('badge-busy');
 }
 
+// ─── CONNECTION / STATUS TOGGLING ───────────────────────────────────────────
+
+function updateConnectionButtonState(status) {
+  const btn = document.getElementById('pwa-connect-btn');
+  if (!btn) return;
+  if (status === 'Em Descanso') {
+    btn.innerText = 'Conectar';
+    btn.className = 'pwa-btn-connect';
+  } else {
+    btn.innerText = 'Desconectar';
+    btn.className = 'pwa-btn-connect online';
+  }
+}
+
+async function toggleConnectionState() {
+  if (!db || !currentRider) return;
+  const btn = document.getElementById('pwa-connect-btn');
+  if (!btn) return;
+
+  const currentStatus = currentRider.status || 'Disponível';
+  
+  if (currentStatus === 'Em Descanso') {
+    // Connect -> change status to 'Disponível'
+    btn.disabled = true;
+    btn.innerText = 'Conectando...';
+    
+    const { error } = await db
+      .from('fleet')
+      .update({ status: 'Disponível', status_class: 'status-success' })
+      .eq('id', currentRider.id);
+
+    btn.disabled = false;
+    if (error) {
+      alert('Erro ao conectar. Tente novamente.');
+      updateConnectionButtonState(currentStatus);
+      return;
+    }
+
+    currentRider.status = 'Disponível';
+    localStorage.setItem('speedMotoSession', JSON.stringify(currentRider));
+    setRiderStatusBadge('Disponível');
+    updateConnectionButtonState('Disponível');
+    showPWAToast('Você está online!');
+  } else {
+    // Disconnect -> check if there are active deliveries
+    btn.disabled = true;
+    btn.innerText = 'Desconectando...';
+    
+    // Check if there are active deliveries for this motoboy
+    const { data, error: countError } = await db
+      .from('client_history')
+      .select('id')
+      .eq('rider', currentRider.name)
+      .neq('status', 'Entregue');
+
+    if (countError) {
+      alert('Erro ao verificar status de corridas. Tente novamente.');
+      btn.disabled = false;
+      updateConnectionButtonState(currentStatus);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      alert('Você tem uma entrega em andamento! Conclua-a antes de se desconectar.');
+      btn.disabled = false;
+      updateConnectionButtonState(currentStatus);
+      return;
+    }
+
+    // Disconnect -> change status to 'Em Descanso'
+    const { error } = await db
+      .from('fleet')
+      .update({ status: 'Em Descanso', status_class: 'status-warning' })
+      .eq('id', currentRider.id);
+
+    btn.disabled = false;
+    if (error) {
+      alert('Erro ao desconectar. Tente novamente.');
+      updateConnectionButtonState(currentStatus);
+      return;
+    }
+
+    currentRider.status = 'Em Descanso';
+    localStorage.setItem('speedMotoSession', JSON.stringify(currentRider));
+    setRiderStatusBadge('Em Descanso');
+    updateConnectionButtonState('Em Descanso');
+    showPWAToast('Você está offline.');
+  }
+}
+
 // ─── TAB NAVIGATION ──────────────────────────────────────────────────────────
 
 function switchPWATab(tab) {
   document.querySelectorAll('.pwa-tab').forEach(t => t.classList.add('hidden'));
-  document.querySelectorAll('.pwa-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.pwa-drawer-item').forEach(b => b.classList.remove('active'));
 
-  document.getElementById('pwa-tab-' + tab).classList.remove('hidden');
-  document.getElementById('pwa-nav-' + tab).classList.add('active');
+  const tabEl = document.getElementById('pwa-tab-' + tab);
+  if (tabEl) tabEl.classList.remove('hidden');
+
+  const navEl = document.getElementById('pwa-nav-' + tab);
+  if (navEl) navEl.classList.add('active');
 
   if (tab === 'map') {
     setTimeout(() => {
@@ -146,6 +250,28 @@ function switchPWATab(tab) {
     }, 100);
   }
   lucide.createIcons();
+}
+
+// ─── DRAWER MENU NAVIGATION ──────────────────────────────────────────────────
+
+function togglePWADrawer(isOpen) {
+  const drawer = document.getElementById('pwa-drawer');
+  if (!drawer) return;
+  if (isOpen) {
+    drawer.classList.add('active');
+  } else {
+    drawer.classList.remove('active');
+  }
+}
+
+function handleDrawerNav(tab) {
+  switchPWATab(tab);
+  togglePWADrawer(false);
+}
+
+function handleDrawerLogout() {
+  togglePWADrawer(false);
+  handleMotoLogout();
 }
 
 // ─── LOAD DELIVERIES ─────────────────────────────────────────────────────────

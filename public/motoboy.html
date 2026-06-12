@@ -478,6 +478,244 @@
         height: calc(var(--nav-h) + env(safe-area-inset-bottom));
       }
     }
+
+    /* Connect button and layout */
+    .pwa-connect-container {
+      padding: 16px;
+      background: #0d0d11;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+
+    .pwa-btn-connect {
+      width: 100%;
+      background: #3f3f46; /* Sleek zinc-600 grey */
+      color: #ffffff;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 14px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, border-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pwa-btn-connect:active {
+      transform: scale(0.98);
+    }
+
+    .pwa-btn-connect.online {
+      background: #18181b; /* Darker grey when online */
+      border-color: var(--primary);
+    }
+
+    /* Floating Menu Button */
+    .pwa-menu-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 900;
+      transition: transform 0.1s, background-color 0.2s, border-color 0.2s;
+    }
+
+    .pwa-menu-btn:active {
+      transform: scale(0.95);
+    }
+
+    .pwa-menu-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .pwa-menu-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Drawer Styles */
+    .pwa-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2000;
+      display: flex;
+      justify-content: flex-end;
+      visibility: hidden;
+      transition: visibility 0.3s;
+    }
+
+    .pwa-drawer.active {
+      visibility: visible;
+    }
+
+    .pwa-drawer-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .pwa-drawer.active .pwa-drawer-overlay {
+      opacity: 1;
+    }
+
+    .pwa-drawer-content {
+      position: relative;
+      width: 280px;
+      height: 100%;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 2010;
+    }
+
+    .pwa-drawer.active .pwa-drawer-content {
+      transform: translateX(0);
+    }
+
+    .pwa-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .pwa-drawer-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary-glow);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+
+    .avatar-circle svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .pwa-drawer-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pwa-drawer-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pwa-drawer-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 16px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+
+    .pwa-drawer-item svg {
+      width: 18px;
+      height: 18px;
+      color: var(--muted);
+      transition: color 0.2s;
+    }
+
+    .pwa-drawer-item:hover, .pwa-drawer-item:active {
+      background: var(--bg-input);
+      border-color: var(--border);
+      color: #ffffff;
+    }
+
+    .pwa-drawer-item:hover svg, .pwa-drawer-item:active svg {
+      color: var(--primary);
+    }
+
+    .pwa-drawer-item.active {
+      background: var(--primary-glow);
+      border-color: rgba(255, 0, 170, 0.2);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .pwa-drawer-item.active svg {
+      color: var(--primary);
+    }
+
+    .pwa-drawer-logout {
+      margin-top: 24px;
+      color: var(--error);
+    }
+
+    .pwa-drawer-logout:hover, .pwa-drawer-logout:active {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .pwa-drawer-logout:hover svg, .pwa-drawer-logout:active svg {
+      color: var(--error);
+    }
+
+    /* Make tab contents take 100% height when not using bottom nav */
+    .pwa-tab {
+      padding-bottom: 24px !important;
+    }
   </style>
 </head>
 <body>
@@ -541,23 +779,54 @@
       </div>
 
       <!-- Map Tab -->
-      <div id="pwa-tab-map" class="pwa-tab hidden">
-        <div id="pwa-map"></div>
+      <div id="pwa-tab-map" class="pwa-tab hidden" style="display: flex; flex-direction: column; height: 100%;">
+        <div id="pwa-map" style="flex: 1; width: 100%;"></div>
+        <div class="pwa-connect-container">
+          <button id="pwa-connect-btn" class="pwa-btn-connect" onclick="toggleConnectionState()">Conectar</button>
+        </div>
       </div>
 
     </main>
 
-    <!-- Bottom Navigation -->
-    <nav class="pwa-bottom-nav">
-      <button class="pwa-nav-btn active" id="pwa-nav-teles" onclick="switchPWATab('teles')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        Minhas Teles
-      </button>
-      <button class="pwa-nav-btn" id="pwa-nav-map" onclick="switchPWATab('map')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-        Mapa
-      </button>
-    </nav>
+    <!-- Floating Menu Button -->
+    <button id="pwa-menu-btn" class="pwa-menu-btn" onclick="togglePWADrawer(true)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <!-- Drawer Navigation Menu -->
+    <div id="pwa-drawer" class="pwa-drawer">
+      <div class="pwa-drawer-overlay" onclick="togglePWADrawer(false)"></div>
+      <div class="pwa-drawer-content">
+        <div class="pwa-drawer-header">
+          <div class="pwa-drawer-profile">
+            <div class="avatar-circle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div>
+              <h4 id="drawer-rider-name">Motoboy</h4>
+              <p id="drawer-rider-id" style="font-size: 0.75rem; color: var(--muted); margin-top: 2px;">#MB-0000</p>
+            </div>
+          </div>
+          <button class="pwa-drawer-close" onclick="togglePWADrawer(false)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <nav class="pwa-drawer-nav">
+          <button class="pwa-drawer-item active" id="pwa-nav-map" onclick="handleDrawerNav('map')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Mapa / Início
+          </button>
+          <button class="pwa-drawer-item" id="pwa-nav-teles" onclick="handleDrawerNav('teles')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Minhas Teles
+          </button>
+          <button class="pwa-drawer-item pwa-drawer-logout" onclick="handleDrawerLogout()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sair da Conta
+          </button>
+        </nav>
+      </div>
+    </div>
 
   </div>
 
