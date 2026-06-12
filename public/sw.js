@@ -1,11 +1,17 @@
 // Speed Motoboy PWA — Service Worker
-const CACHE_NAME = 'speed-moto-v8';
+const CACHE_NAME = 'speed-moto-v9';
 
 // App shell assets to cache on install
 const SHELL_ASSETS = [
+  '/',
   '/motoboy.html',
   '/motoboy.js',
-  '/logo.jpg'
+  '/manifest.json',
+  '/logo.jpg',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/lucide@latest',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
 // Install: pre-cache app shell
@@ -53,7 +59,7 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       fetch(event.request).then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const cloned = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
@@ -69,7 +75,7 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
         // Cache new valid responses
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const cloned = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }

@@ -1090,26 +1090,9 @@
               </div>
 
               <!-- Main Install Grid -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+              <div style="max-width: 460px; margin: 0 auto; width: 100%;">
                 
-                <!-- Card 1: Main App (Administração & Comércios) -->
-                <div class="card" style="padding: 28px; border: 1px solid var(--border-color); border-top: 4px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; transition: all var(--transition-fast);">
-                  <div>
-                    <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--primary-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(255, 210, 0, 0.2);">
-                      <i data-lucide="layout-dashboard" style="width: 24px; height: 24px; color: var(--primary);"></i>
-                    </div>
-                    <h3 style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--color-text);">Painel Administrativo</h3>
-                    <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5; margin-top: 8px;">Instale o painel completo para gerenciar faturamento, acompanhar a frota de motoboys e receber novos pedidos de entrega.</p>
-                  </div>
-                  
-                  <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
-                    <button class="btn btn-primary btn-block pwa-install-btn" onclick="installPWA()" style="gap: 8px;">
-                      <i data-lucide="plus-circle"></i> Instalar Painel
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Card 2: Rider App (App do Motoboy PWA) -->
+                <!-- Card: Rider App (App do Motoboy PWA) -->
                 <div class="card" style="padding: 28px; border: 1px solid var(--border-color); border-top: 4px solid var(--accent-cyan); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; transition: all var(--transition-fast);">
                   <div>
                     <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--accent-cyan-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(0, 174, 239, 0.2);">
@@ -1462,32 +1445,21 @@
 
   <!-- Modal: Baixar App -->
   <div id="modal-download-app" class="modal-overlay hidden" onclick="closeDownloadApp(event)">
-    <div class="modal-card" style="max-width: 600px;" onclick="event.stopPropagation()">
+    <div class="modal-card" style="max-width: 400px;" onclick="event.stopPropagation()">
       <div class="modal-header">
         <h3><i data-lucide="download" class="inline-icon text-yellow"></i> Baixar Aplicativo</h3>
         <button class="modal-close-btn" onclick="closeDownloadApp()"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
-        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 8px;">Adicione a plataforma à sua tela inicial para ter notificações instantâneas e acesso rápido.</p>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 8px;">Adicione o aplicativo do motoboy à sua tela inicial para ter notificações instantâneas e acesso rápido.</p>
         
-        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-          <div class="card flex-1" style="padding: 16px; border: 1px solid var(--border-color); text-align: center; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-            <div>
-              <i data-lucide="layout-dashboard" style="width: 32px; height: 32px; color: var(--primary); margin: 0 auto 12px; display: block;"></i>
-              <h4 style="font-size: 1rem; font-weight: 600; color: var(--color-text);">Painel Principal</h4>
-              <p class="text-muted text-xs mt-1" style="margin-top: 4px;">Instalar o aplicativo administrativo principal</p>
-            </div>
-            <button class="btn btn-primary btn-sm btn-block pwa-install-btn" onclick="installPWA()" style="height: 30px; font-size: 0.8rem; margin-top: 12px;">Instalar App</button>
+        <div class="card" style="padding: 20px; border: 1px solid var(--border-color); text-align: center; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+          <div>
+            <i data-lucide="bike" style="width: 32px; height: 32px; color: var(--accent-cyan); margin: 0 auto 12px; display: block;"></i>
+            <h4 style="font-size: 1rem; font-weight: 600; color: var(--color-text);">PWA do Motoboy</h4>
+            <p class="text-muted text-xs mt-1" style="margin-top: 4px;">Instalar o aplicativo exclusivo de entregas</p>
           </div>
-          
-          <div class="card flex-1" style="padding: 16px; border: 1px solid var(--border-color); text-align: center; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-            <div>
-              <i data-lucide="bike" style="width: 32px; height: 32px; color: var(--accent-cyan); margin: 0 auto 12px; display: block;"></i>
-              <h4 style="font-size: 1rem; font-weight: 600; color: var(--color-text);">PWA do Motoboy</h4>
-              <p class="text-muted text-xs mt-1" style="margin-top: 4px;">Instalar o aplicativo exclusivo de entregas</p>
-            </div>
-            <a href="motoboy.html" target="_blank" class="btn btn-secondary btn-sm btn-block" style="height: 30px; font-size: 0.8rem; margin-top: 12px; text-decoration: none; display: flex; align-items: center; justify-content: center; background: var(--secondary);">Abrir App</a>
-          </div>
+          <a href="motoboy.html" target="_blank" class="btn btn-secondary btn-sm btn-block" style="height: 30px; font-size: 0.8rem; margin-top: 12px; text-decoration: none; display: flex; align-items: center; justify-content: center; background: var(--secondary);">Abrir App</a>
         </div>
         
         <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">

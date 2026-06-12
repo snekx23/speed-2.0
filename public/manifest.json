@@ -1,6 +1,6 @@
 {
-  "name": "Speed Logística — Motoboy",
-  "short_name": "Speed Moto",
+  "name": "Speed",
+  "short_name": "Speed",
   "description": "App do entregador Speed Logística. Veja suas teles e acompanhe o mapa.",
   "start_url": "/motoboy.html",
   "scope": "/",

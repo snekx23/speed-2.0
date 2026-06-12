@@ -993,3 +993,58 @@ function renderReports(period) {
     </div>
   `).join('');
 }
+
+// ─── PWA INSTALLATION HANDLER ────────────────────────────────────────────────
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent Chrome 67 and earlier from automatically showing the prompt
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  deferredPrompt = e;
+  
+  // Show install buttons
+  const loginInstallBtn = document.getElementById('pwa-install-app-btn');
+  const drawerInstallBtn = document.getElementById('pwa-nav-install');
+  
+  if (loginInstallBtn) loginInstallBtn.classList.remove('hidden');
+  if (drawerInstallBtn) drawerInstallBtn.classList.remove('hidden');
+});
+
+function triggerAppInstall() {
+  if (!deferredPrompt) {
+    alert('O atalho já foi instalado ou não é suportado pelo seu navegador atual. Se estiver usando iPhone/Safari, toque no botão de compartilhar e selecione "Adicionar à Tela de Início".');
+    return;
+  }
+  
+  // Show the prompt
+  deferredPrompt.prompt();
+  
+  // Wait for the user to respond to the prompt
+  deferredPrompt.userChoice.then((choiceResult) => {
+    if (choiceResult.outcome === 'accepted') {
+      showPWAToast('Obrigado por instalar o aplicativo!');
+    }
+    deferredPrompt = null;
+    
+    // Hide install buttons
+    const loginInstallBtn = document.getElementById('pwa-install-app-btn');
+    const drawerInstallBtn = document.getElementById('pwa-nav-install');
+    
+    if (loginInstallBtn) loginInstallBtn.classList.add('hidden');
+    if (drawerInstallBtn) drawerInstallBtn.classList.add('hidden');
+  });
+}
+
+// Listen for successful installation
+window.addEventListener('appinstalled', () => {
+  showPWAToast('Aplicativo Speed instalado com sucesso!');
+  deferredPrompt = null;
+  
+  const loginInstallBtn = document.getElementById('pwa-install-app-btn');
+  const drawerInstallBtn = document.getElementById('pwa-nav-install');
+  
+  if (loginInstallBtn) loginInstallBtn.classList.add('hidden');
+  if (drawerInstallBtn) drawerInstallBtn.classList.add('hidden');
+});
