@@ -23,6 +23,18 @@ const mockData = {
   pendingDeliveries: []
 };
 
+// Escapes HTML-special characters so values from the database can never be
+// rendered as markup (prevents stored XSS via fields like address/name).
+function escapeHtml(value) {
+  if (value === null || value === undefined) return value;
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Global Chart and Map variables to allow proper reset/destroy
 let ownerOverviewChart = null;
 let ownerFinancialChart = null;
@@ -89,15 +101,15 @@ async function fetchClientHistory() {
       .order('id', { ascending: false });
     if (error) throw error;
     mockData.clientHistory = data.map(item => ({
-      id: String(item.id),
-      destName: item.dest_name,
-      address: item.address,
-      rider: item.rider,
-      dist: item.dist,
-      price: item.price,
-      date: item.date,
-      status: item.status,
-      statusClass: item.status_class
+      id: escapeHtml(String(item.id)),
+      destName: escapeHtml(item.dest_name),
+      address: escapeHtml(item.address),
+      rider: escapeHtml(item.rider),
+      dist: escapeHtml(item.dist),
+      price: escapeHtml(item.price),
+      date: escapeHtml(item.date),
+      status: escapeHtml(item.status),
+      statusClass: escapeHtml(item.status_class)
     }));
   } catch (err) {
     console.error("Error fetching client history from Supabase:", err);
@@ -113,14 +125,14 @@ async function fetchPendingDeliveries() {
       .order('id', { ascending: true });
     if (error) throw error;
     mockData.pendingDeliveries = data.map(item => ({
-      id: String(item.id),
-      client: item.client,
-      destName: item.dest_name,
-      address: item.address,
-      dist: item.dist,
-      price: item.price,
-      payment: item.payment,
-      cargo: item.cargo
+      id: escapeHtml(String(item.id)),
+      client: escapeHtml(item.client),
+      destName: escapeHtml(item.dest_name),
+      address: escapeHtml(item.address),
+      dist: escapeHtml(item.dist),
+      price: escapeHtml(item.price),
+      payment: escapeHtml(item.payment),
+      cargo: escapeHtml(item.cargo)
     }));
   } catch (err) {
     console.error("Error fetching pending deliveries from Supabase:", err);
@@ -494,20 +506,20 @@ function renderFleetTable() {
         <div class="user-profile">
           <div class="item-icon-avatar bg-yellow"><i data-lucide="bike" class="text-black"></i></div>
           <div>
-            <strong>${rider.name}</strong>
-            <p class="text-muted text-xs">${rider.id}</p>
+            <strong>${escapeHtml(rider.name)}</strong>
+            <p class="text-muted text-xs">${escapeHtml(rider.id)}</p>
           </div>
         </div>
       </td>
       <td>
-        <strong>${rider.vehicle}</strong>
-        <p class="text-muted">${rider.plate}</p>
+        <strong>${escapeHtml(rider.vehicle)}</strong>
+        <p class="text-muted">${escapeHtml(rider.plate)}</p>
       </td>
-      <td><span class="status-indicator ${rider.statusClass}">${rider.status}</span></td>
-      <td><strong>${rider.delivery}</strong></td>
+      <td><span class="status-indicator ${escapeHtml(rider.statusClass)}">${escapeHtml(rider.status)}</span></td>
+      <td><strong>${escapeHtml(rider.delivery)}</strong></td>
       <td>
         <div class="perf-bar-group" style="width: 100px;">
-          <div class="perf-bar-label"><span class="text-xs">${rider.battery}</span></div>
+          <div class="perf-bar-label"><span class="text-xs">${escapeHtml(rider.battery)}</span></div>
           <div class="perf-bar">
             <div class="perf-bar-fill ${parseInt(rider.battery) > 50 ? 'bg-green' : (parseInt(rider.battery) > 25 ? 'bg-yellow' : 'bg-blue')}" style="width: ${parseInt(rider.battery)}%"></div>
           </div>
@@ -611,8 +623,8 @@ function renderRiderPayments() {
   tbody.innerHTML = rows.map(row => `
     <tr>
       <td>
-        <strong>${row.rider.name}</strong>
-        <p class="text-muted">${row.rider.id || '—'}</p>
+        <strong>${escapeHtml(row.rider.name)}</strong>
+        <p class="text-muted">${escapeHtml(row.rider.id) || '—'}</p>
       </td>
       <td>${row.count}</td>
       <td><strong class="text-yellow">${formatMoneyBR(row.total)}</strong></td>
@@ -1171,7 +1183,7 @@ function renderMapMarkers(centerCoords) {
                 ${deliveryOptions}
             </select>
             <div class="map-popup-actions">
-              <button class="map-popup-send-btn" onclick="handlePopupDispatch('${rider.name}')">
+              <button class="map-popup-send-btn" onclick="handlePopupDispatch('${escapeHtml(rider.name)}')">
                 <i data-lucide="send"></i>
                 <span>Enviar</span>
               </button>
@@ -1204,9 +1216,9 @@ function renderMapMarkers(centerCoords) {
     // Popup custom content
     const popupContent = `
       <div class="map-popup-card">
-        <h4>${rider.name}</h4>
-        <p>${rider.vehicle} • <strong>${rider.plate}</strong></p>
-        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#ff00aa' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#ff00aa' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${currentStatus}</span>
+        <h4>${escapeHtml(rider.name)}</h4>
+        <p>${escapeHtml(rider.vehicle)} • <strong>${escapeHtml(rider.plate)}</strong></p>
+        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#ff00aa' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#ff00aa' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${escapeHtml(currentStatus)}</span>
         ${dispatchHtml}
       </div>
     `;
@@ -1245,7 +1257,7 @@ function renderPendingDeliveries() {
     // Generate active riders list options for dropdown
     const activeRidersOptions = mockData.fleet
       .filter(rider => rider.status !== 'Em Descanso')
-      .map(rider => `<option value="${rider.id}">${rider.name} (${rider.status})</option>`)
+      .map(rider => `<option value="${escapeHtml(rider.id)}">${escapeHtml(rider.name)} (${escapeHtml(rider.status)})</option>`)
       .join('');
 
     const card = document.createElement('div');
