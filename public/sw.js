@@ -1,5 +1,5 @@
 // Speed Motoboy PWA — Service Worker
-const CACHE_NAME = 'speed-moto-v5';
+const CACHE_NAME = 'speed-moto-v6';
 
 // App shell assets to cache on install
 const SHELL_ASSETS = [

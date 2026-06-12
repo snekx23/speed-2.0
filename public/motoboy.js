@@ -126,6 +126,10 @@ function showApp() {
   // Initialize connection button state
   updateConnectionButtonState(currentRider.status || 'Disponível');
 
+  // Load profile details (email and photo) and weekly earnings balance
+  loadLocalProfile();
+  loadWeeklyBalance();
+
   // Switch to map tab by default
   switchPWATab('map');
   subscribeRealtime();
@@ -145,13 +149,24 @@ function setRiderStatusBadge(status) {
 
 function updateConnectionButtonState(status) {
   const btn = document.getElementById('pwa-connect-btn');
+  const statusVal = document.getElementById('map-status-val');
+  
   if (!btn) return;
+
   if (status === 'Em Descanso') {
     btn.innerText = 'Conectar';
-    btn.className = 'pwa-btn-connect';
+    btn.className = 'pwa-btn-connect-pill offline';
+    if (statusVal) {
+      statusVal.innerText = 'OFFLINE';
+      statusVal.className = 'status-val offline';
+    }
   } else {
     btn.innerText = 'Desconectar';
-    btn.className = 'pwa-btn-connect online';
+    btn.className = 'pwa-btn-connect-pill online';
+    if (statusVal) {
+      statusVal.innerText = 'ONLINE';
+      statusVal.className = 'status-val online';
+    }
   }
 }
 
@@ -248,6 +263,8 @@ function switchPWATab(tab) {
       if (!riderMap) initRiderMap();
       else riderMap.invalidateSize();
     }, 100);
+  } else if (tab === 'reports') {
+    loadReportsData();
   }
   lucide.createIcons();
 }
@@ -298,6 +315,9 @@ async function loadMyDeliveries() {
     container.innerHTML = `<p class="pwa-empty-msg">Erro ao carregar teles. Tente novamente.</p>`;
     return;
   }
+
+  // Update map floating badges and action buttons
+  updateMapOverlays(data || []);
 
   renderTeleCards(data || []);
 }
@@ -511,4 +531,381 @@ function showPWAToast(msg) {
     toast.style.transition = 'opacity 0.3s';
     setTimeout(() => toast.remove(), 300);
   }, 3500);
+}
+
+// ─── PROFILE AND STATS HELPERS ───────────────────────────────────────────────
+
+let localProfileImage = null;
+let currentPeriod = 'day';
+let riderHistory = [];
+
+function loadLocalProfile() {
+  if (!currentRider) return;
+  const localAvatar = localStorage.getItem(`speedRiderAvatar_${currentRider.id}`);
+  const localEmail = localStorage.getItem(`speedRiderEmail_${currentRider.id}`) || 'motoboy@speedlog.com.br';
+  
+  localProfileImage = localAvatar || null;
+
+  // Update Drawer Profile Image
+  const drawerImg = document.getElementById('drawer-avatar-img');
+  const drawerPlaceholder = document.getElementById('drawer-avatar-placeholder');
+  if (localAvatar && drawerImg && drawerPlaceholder) {
+    drawerImg.src = localAvatar;
+    drawerImg.classList.remove('hidden');
+    drawerPlaceholder.classList.add('hidden');
+  } else if (drawerImg && drawerPlaceholder) {
+    drawerImg.classList.add('hidden');
+    drawerPlaceholder.classList.remove('hidden');
+  }
+
+  // Update Floating Map Profile Image
+  const mapImg = document.getElementById('map-avatar-img');
+  const mapPlaceholder = document.getElementById('map-avatar-placeholder');
+  if (localAvatar && mapImg && mapPlaceholder) {
+    mapImg.src = localAvatar;
+    mapImg.classList.remove('hidden');
+    mapPlaceholder.classList.add('hidden');
+  } else if (mapImg && mapPlaceholder) {
+    mapImg.classList.add('hidden');
+    mapPlaceholder.classList.remove('hidden');
+  }
+
+  // Pre-fill Profile Edit Form
+  const profileName = document.getElementById('profile-name');
+  const profileEmail = document.getElementById('profile-email');
+  const profilePin = document.getElementById('profile-pin');
+  const profileUrl = document.getElementById('profile-avatar-url');
+  
+  if (profileName) profileName.value = currentRider.name || '';
+  if (profileEmail) profileEmail.value = localEmail;
+  if (profilePin) profilePin.value = currentRider.pin || '';
+  if (profileUrl) profileUrl.value = (localAvatar && !localAvatar.startsWith('data:')) ? localAvatar : '';
+
+  updateProfilePreview(localAvatar);
+}
+
+function updateProfilePreview(imgSrc) {
+  const profileImg = document.getElementById('profile-avatar-img');
+  const profilePlaceholder = document.getElementById('profile-avatar-placeholder');
+  if (imgSrc && profileImg && profilePlaceholder) {
+    profileImg.src = imgSrc;
+    profileImg.classList.remove('hidden');
+    profilePlaceholder.classList.add('hidden');
+  } else if (profileImg && profilePlaceholder) {
+    profileImg.classList.add('hidden');
+    profilePlaceholder.classList.remove('hidden');
+  }
+}
+
+// ─── FILE UPLOAD AND PHOTO LINK HANDLING ────────────────────────────────────
+
+function handleProfileUrlInput(url) {
+  localProfileImage = url.trim() || null;
+  updateProfilePreview(localProfileImage);
+}
+
+function handleProfileImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    localProfileImage = e.target.result;
+    updateProfilePreview(localProfileImage);
+    const urlInput = document.getElementById('profile-avatar-url');
+    if (urlInput) urlInput.value = ''; // clear URL input to avoid confusion
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearProfileImage() {
+  localProfileImage = null;
+  updateProfilePreview(null);
+  const fileInput = document.getElementById('profile-file-input');
+  const urlInput = document.getElementById('profile-avatar-url');
+  if (fileInput) fileInput.value = '';
+  if (urlInput) urlInput.value = '';
+}
+
+async function saveProfileChanges(event) {
+  event.preventDefault();
+  if (!db || !currentRider) return;
+
+  const email = document.getElementById('profile-email').value.trim();
+  const pin = document.getElementById('profile-pin').value.trim();
+  const saveBtn = document.getElementById('save-profile-btn');
+
+  if (pin.length !== 4 || isNaN(pin)) {
+    alert('O PIN deve conter exatamente 4 dígitos numéricos.');
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.innerText = 'Salvando...';
+
+  // 1. Update PIN on Supabase
+  const { error } = await db
+    .from('fleet')
+    .update({ pin })
+    .eq('id', currentRider.id);
+
+  saveBtn.disabled = false;
+  saveBtn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Salvar Alterações
+  `;
+
+  if (error) {
+    alert('Erro ao salvar no banco de dados. Tente novamente.');
+    return;
+  }
+
+  // 2. Persist local variables (email and photo)
+  localStorage.setItem(`speedRiderEmail_${currentRider.id}`, email);
+  if (localProfileImage) {
+    localStorage.setItem(`speedRiderAvatar_${currentRider.id}`, localProfileImage);
+  } else {
+    localStorage.removeItem(`speedRiderAvatar_${currentRider.id}`);
+  }
+
+  // Update session
+  currentRider.pin = pin;
+  localStorage.setItem('speedMotoSession', JSON.stringify(currentRider));
+
+  // Reload profile indicators in UI
+  loadLocalProfile();
+  showPWAToast('Perfil atualizado com sucesso!');
+  switchPWATab('map');
+}
+
+// ─── FINANCIAL CALCULATIONS AND HISTORICAL DATA ──────────────────────────────
+
+function parseMoney(value) {
+  if (!value) return 0;
+  return parseFloat(String(value).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+}
+
+function formatMoney(value) {
+  return 'R$ ' + value.toFixed(2).replace('.', ',');
+}
+
+function parseOrderDate(dateText) {
+  const raw = String(dateText || '').trim();
+  const now = new Date();
+  if (!raw) return now;
+  if (raw.startsWith('Hoje')) {
+    return now;
+  }
+  if (raw.startsWith('Ontem')) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 1);
+    return d;
+  }
+  const brDate = raw.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  if (brDate) {
+    const year = brDate[3] ? parseInt(brDate[3]) : now.getFullYear();
+    const month = parseInt(brDate[2]) - 1;
+    const day = parseInt(brDate[1]);
+    return new Date(year, month, day);
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? now : parsed;
+}
+
+function isDateToday(date) {
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
+
+function isDateInCurrentWeek(date) {
+  const today = new Date();
+  const day = today.getDay();
+  const monday = new Date(today);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(today.getDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return date >= monday && date <= sunday;
+}
+
+function isDateInCurrentMonth(date) {
+  const today = new Date();
+  return date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
+
+async function loadWeeklyBalance() {
+  const balanceEl = document.getElementById('drawer-weekly-balance');
+  if (!db || !currentRider) return;
+
+  const { data, error } = await db
+    .from('client_history')
+    .select('price, date')
+    .eq('rider', currentRider.name)
+    .eq('status', 'Entregue');
+
+  if (error || !data) return;
+
+  let totalWeekly = 0;
+  data.forEach(order => {
+    const orderDate = parseOrderDate(order.date);
+    if (isDateInCurrentWeek(orderDate)) {
+      totalWeekly += parseMoney(order.price);
+    }
+  });
+
+  if (balanceEl) balanceEl.innerText = formatMoney(totalWeekly);
+}
+
+// ─── MAP INTERACTION OVERLAYS ───────────────────────────────────────────────
+
+function centerMapOnRider() {
+  if (riderMap && lastPosition) {
+    riderMap.setView([lastPosition.lat, lastPosition.lng], 16);
+  }
+}
+
+function updateMapOverlays(deliveries) {
+  // Update badge count
+  const badge = document.getElementById('map-teles-badge');
+  if (badge) {
+    if (deliveries.length > 0) {
+      badge.innerText = deliveries.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // Quick confirm button display logic
+  const activeTele = (deliveries || []).find(t => t.status === 'A caminho da coleta' || t.status === 'Em rota de entrega');
+  const quickActionBtn = document.getElementById('map-quick-action-btn');
+  if (quickActionBtn) {
+    if (activeTele) {
+      quickActionBtn.dataset.teleId = activeTele.id;
+      quickActionBtn.dataset.teleStatus = activeTele.status;
+      
+      if (activeTele.status === 'A caminho da coleta') {
+        quickActionBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        `;
+        quickActionBtn.title = "Confirmar Coleta";
+      } else {
+        quickActionBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        `;
+        quickActionBtn.title = "Confirmar Entrega";
+      }
+      quickActionBtn.classList.remove('hidden');
+    } else {
+      quickActionBtn.classList.add('hidden');
+    }
+  }
+}
+
+function triggerQuickAction() {
+  const btn = document.getElementById('map-quick-action-btn');
+  if (!btn) return;
+  const teleId = btn.dataset.teleId;
+  const status = btn.dataset.teleStatus;
+  
+  if (!teleId || !status) return;
+  
+  if (status === 'A caminho da coleta') {
+    confirmPickup(teleId);
+  } else if (status === 'Em rota de entrega') {
+    confirmDelivery(teleId);
+  }
+}
+
+// ─── REPORTS GENERATOR AND PERIOD FILTER ─────────────────────────────────────
+
+async function loadReportsData() {
+  const listContainer = document.getElementById('pwa-reports-list-container');
+  if (listContainer) {
+    listContainer.innerHTML = `
+      <div class="pwa-loading" style="padding: 30px 0;">
+        <div class="pwa-spinner"></div>
+      </div>
+    `;
+  }
+
+  if (!db || !currentRider) return;
+
+  const { data, error } = await db
+    .from('client_history')
+    .select('*')
+    .eq('rider', currentRider.name)
+    .eq('status', 'Entregue')
+    .order('id', { ascending: false });
+
+  if (error || !data) {
+    if (listContainer) listContainer.innerHTML = '<p class="pwa-empty-msg">Erro ao carregar histórico.</p>';
+    return;
+  }
+
+  riderHistory = data;
+  renderReports(currentPeriod);
+}
+
+function setReportsPeriod(period) {
+  currentPeriod = period;
+  
+  // Update filter pills active class
+  document.querySelectorAll('.pwa-reports-filters .pwa-filter-pill').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const activeBtn = document.getElementById('filter-btn-' + period);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  renderReports(period);
+}
+
+function renderReports(period) {
+  const listContainer = document.getElementById('pwa-reports-list-container');
+  const totalEarnedEl = document.getElementById('reports-total-earned');
+  const totalCountEl = document.getElementById('reports-total-count');
+
+  if (!listContainer) return;
+
+  // Filter deliveries based on date period
+  const filtered = riderHistory.filter(order => {
+    const orderDate = parseOrderDate(order.date);
+    if (period === 'day') return isDateToday(orderDate);
+    if (period === 'week') return isDateInCurrentWeek(orderDate);
+    if (period === 'month') return isDateInCurrentMonth(orderDate);
+    return false;
+  });
+
+  // Calculate totals
+  let totalEarned = 0;
+  filtered.forEach(order => {
+    totalEarned += parseMoney(order.price);
+  });
+
+  if (totalEarnedEl) totalEarnedEl.innerText = formatMoney(totalEarned);
+  if (totalCountEl) totalCountEl.innerText = filtered.length;
+
+  // Render items
+  if (filtered.length === 0) {
+    listContainer.innerHTML = '<p class="pwa-empty-msg" style="text-align:center; color:var(--muted); margin: 30px 0; font-size:0.85rem;">Nenhuma tele entregue neste período.</p>';
+    return;
+  }
+
+  listContainer.innerHTML = filtered.map(order => `
+    <div class="pwa-report-item">
+      <div>
+        <strong style="font-family: var(--font-display); font-size: 0.9rem; color: var(--text);">${order.id}</strong>
+        <p style="font-size: 0.78rem; color: var(--muted); margin-top: 2px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; max-width: 170px;">${order.address}</p>
+        <span style="font-size: 0.72rem; color: var(--muted); display: block; margin-top: 4px;">${order.date}</span>
+      </div>
+      <div style="text-align: right;">
+        <strong style="font-size: 0.95rem; color: #10b981;">${order.price}</strong>
+        <span style="font-size: 0.7rem; color: var(--success); font-weight: 700; display: block; text-transform: uppercase; margin-top: 2px;">Entregue</span>
+      </div>
+    </div>
+  `).join('');
 }
