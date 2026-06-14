@@ -54,8 +54,8 @@
       <div class="hero-container">
         <!-- Hero Left: Content -->
         <div class="hero-content">
-          <span class="hero-tagline"><i data-lucide="shield-check" class="inline-icon"></i> Logística Urbana Premium</span>
-          <h1 class="hero-title">O motoboy ideal para a sua lancheria, a <span class="gradient-text">um clique de distância.</span></h1>
+          <span class="hero-tagline"><i data-lucide="shield-check" class="inline-icon"></i> Mais Agilidade. Mais Controle. Mais Entregas.</span>
+          <h1 class="hero-title">Sua logística de entregas em um <span class="gradient-text">único painel.</span></h1>
           <p class="hero-subtitle">Fornecemos entregadores sob demanda e fixos para o seu comércio. Gerencie faturamento, acompanhe taxas em tempo real e impulsione suas vendas com a Speed.</p>
           
           <div class="hero-stats">
@@ -89,9 +89,6 @@
               </button>
               <button class="tab-btn" data-tab="client" onclick="switchLoginTab('client')">
                 <i data-lucide="store"></i> Área do Parceiro
-              </button>
-              <button class="tab-btn" data-tab="order" onclick="switchLoginTab('order')">
-                <i data-lucide="navigation"></i> Solicitar Entrega
               </button>
             </div>
 
@@ -174,11 +171,21 @@
             <button class="nav-item" data-tab="owner-rider-payments" onclick="switchDashboardTab('owner-rider-payments')">
               <i data-lucide="receipt"></i> Repasse Semanal
             </button>
+            <button class="nav-item" data-tab="owner-support" style="position: relative;" onclick="switchDashboardTab('owner-support')">
+              <i data-lucide="message-square"></i> Suporte Chat
+              <span class="pulse-dot hidden" id="admin-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+            </button>
           </div>
 
           <div class="nav-group" id="nav-client-group">
             <button class="nav-item active" data-tab="client-overview" onclick="switchDashboardTab('client-overview')">
               <i data-lucide="home"></i> Meu Comércio
+            </button>
+            <button class="nav-item" data-tab="order-request" onclick="switchDashboardTab('order-request')">
+              <i data-lucide="plus-circle"></i> Nova Solicitação
+            </button>
+            <button class="nav-item" data-tab="order-tracking" id="nav-tracking-tab" onclick="switchDashboardTab('order-tracking')" disabled>
+              <i data-lucide="map-pin"></i> Rastrear Motoboy <span class="pulse-dot hidden"></span>
             </button>
             <button class="nav-item" data-tab="client-history" onclick="switchDashboardTab('client-history')">
               <i data-lucide="list-ordered"></i> Histórico Entregas
@@ -186,15 +193,14 @@
             <button class="nav-item" data-tab="client-ratings" onclick="switchDashboardTab('client-ratings')">
               <i data-lucide="star"></i> Avaliações
             </button>
+            <button class="nav-item" data-tab="client-support" style="position: relative;" onclick="switchDashboardTab('client-support')">
+              <i data-lucide="message-square"></i> Suporte Chat
+              <span class="pulse-dot hidden" id="client-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+            </button>
           </div>
 
-          <div class="nav-group" id="nav-order-group">
-            <button class="nav-item active" data-tab="order-request" onclick="switchDashboardTab('order-request')">
-              <i data-lucide="plus-circle"></i> Nova Solicitação
-            </button>
-            <button class="nav-item" data-tab="order-tracking" id="nav-tracking-tab" onclick="switchDashboardTab('order-tracking')" disabled>
-              <i data-lucide="map-pin"></i> Rastrear Entrega <span class="pulse-dot hidden"></span>
-            </button>
+          <div class="nav-group hidden" id="nav-order-group" style="display: none !important;">
+            <!-- Hidden as requested, functionality moved to Client panel -->
           </div>
 
           <div class="nav-group" id="nav-general-group" style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 16px;">
@@ -882,7 +888,15 @@
                       <div class="input-wrapper">
                         <i data-lucide="search" class="input-icon"></i>
                         <input type="text" id="delivery-address" required placeholder="Digite o endereço completo do cliente" oninput="calculateEstimate()">
+                        <div id="address-suggestions" class="autocomplete-dropdown hidden"></div>
                       </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                      <label style="font-size: 0.8rem; color: var(--color-text-muted); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="map" style="width: 14px; height: 14px;"></i> Marcar no Mapa (Arraste o marcador ou clique para ajustar)
+                      </label>
+                      <div id="request-delivery-map" style="height: 250px; width: 100%; border-radius: var(--border-radius-md); border: 1px solid var(--border-color); z-index: 1;"></div>
                     </div>
 
                     <div class="form-row mt-3">
@@ -1040,39 +1054,14 @@
                 </div>
               </div>
 
-              <!-- Right side: Simulated Map Tracker -->
+              <!-- Right side: Real-Time Map Tracker -->
               <div class="card map-tracker-card">
                 <div class="card-header">
-                  <h3>Simulador de Rastreamento Satélite</h3>
+                  <h3>Rastreamento GPS do Motoboy</h3>
                   <span class="status-indicator status-success"><i data-lucide="navigation"></i> GPS Ativo</span>
                 </div>
                 <div class="card-body p-0 relative">
-                  <!-- Simulated Map View -->
-                  <div class="simulated-map" id="sim-map">
-                    <!-- Map background elements (fake streets, buildings) -->
-                    <div class="map-grid-bg"></div>
-                    <div class="map-street street-h" style="top: 25%;"></div>
-                    <div class="map-street street-h" style="top: 70%;"></div>
-                    <div class="map-street street-v" style="left: 30%;"></div>
-                    <div class="map-street street-v" style="left: 75%;"></div>
-                    
-                    <!-- Map Pins -->
-                    <div class="map-pin pin-pickup" style="top: 70%; left: 30%;" title="Sua Lancheria">
-                      <i data-lucide="store"></i>
-                      <span class="pin-tooltip">Retirada</span>
-                    </div>
-
-                    <div class="map-pin pin-delivery" style="top: 25%; left: 75%;" title="Destino do Cliente">
-                      <i data-lucide="map-pin"></i>
-                      <span class="pin-tooltip">Destino</span>
-                    </div>
-
-                    <!-- Motoboy Icon on Map (moving) -->
-                    <div class="map-moto-avatar" id="map-moto" style="top: 70%; left: 30%;">
-                      <i data-lucide="bike" class="moto-icon"></i>
-                      <div class="moto-wave"></div>
-                    </div>
-                  </div>
+                  <div id="tracking-map" style="height: 420px; width: 100%; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); z-index: 1;"></div>
                 </div>
               </div>
             </div>
@@ -1149,6 +1138,80 @@
                 </div>
               </div>
 
+            </div>
+          </div>
+
+          <!-- 7. Admin Support Chat Tab -->
+          <div id="tab-owner-support" class="dashboard-tab-content">
+            <div class="owner-chat-wrapper" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 200px); min-height: 480px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+              <!-- Conversations Sidebar (Left) -->
+              <div class="chat-sidebar-pane" style="border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--secondary); height: 100%;">
+                <div style="padding: 20px 16px; border-bottom: 1px solid var(--border-color);">
+                  <h3 style="font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); margin: 0; text-transform: uppercase; letter-spacing: 1px;">Conversas de Suporte</h3>
+                </div>
+                <div id="admin-chat-channels-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0;">
+                  <!-- Dynamic channel list -->
+                </div>
+              </div>
+              
+              <!-- Active Conversation Pane (Right) -->
+              <div id="admin-active-chat-container" style="display: flex; flex-direction: column; background: rgba(0,0,0,0.15); height: 100%; position: relative;">
+                <!-- No Selection state -->
+                <div id="admin-chat-no-selection" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; text-align: center; color: var(--color-text-muted); height: 100%;">
+                  <i data-lucide="message-square" style="width: 48px; height: 48px; stroke-width: 1.5; color: var(--color-text-muted);"></i>
+                  <div>
+                    <h4 style="font-size: 1.1rem; font-weight: 600; color: var(--color-text); margin: 0;">Nenhuma Conversa Selecionada</h4>
+                    <p style="font-size: 0.85rem; margin: 6px 0 0 0;">Selecione um cliente ao lado para ver o histórico e responder.</p>
+                  </div>
+                </div>
+                
+                <!-- Chat Window (Selected State) -->
+                <div id="admin-chat-window-pane" class="hidden" style="flex: 1; display: flex; flex-direction: column; height: 100%;">
+                  <!-- Header -->
+                  <div class="chat-header-pane" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--secondary);">
+                    <div>
+                      <h3 id="admin-chat-client-title" style="font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--color-text); margin: 0;">Cliente</h3>
+                      <p id="admin-chat-client-subtitle" style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0; margin-top: 2px;">email@estabelecimento.com</p>
+                    </div>
+                  </div>
+                  <!-- Message list container -->
+                  <div id="admin-chat-messages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+                    <!-- Message bubbles injected here -->
+                  </div>
+                  <!-- Message Input -->
+                  <form id="admin-chat-form" onsubmit="sendAdminChatMessage(event)" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; background: var(--secondary);">
+                    <input type="text" id="admin-chat-input" placeholder="Digite uma resposta..." required style="flex: 1; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.9rem; outline: none;" autocomplete="off">
+                    <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; justify-content: center; min-width: 100px;">
+                      <span>Enviar</span> <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 8. Client Support Chat Tab -->
+          <div id="tab-client-support" class="dashboard-tab-content">
+            <div class="chat-container-wrapper" style="display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 480px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+              <!-- Chat Header -->
+              <div class="chat-header-pane" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; background: var(--secondary);">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></div>
+                <div>
+                  <h3 style="font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--color-text); margin: 0;">Suporte Speed Logística</h3>
+                  <p style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0; margin-top: 2px;">Envie mensagens em tempo real para nossa central administrativa</p>
+                </div>
+              </div>
+              <!-- Message list container -->
+              <div id="client-chat-messages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; background: rgba(0,0,0,0.15);">
+                <!-- Message bubbles injected here -->
+              </div>
+              <!-- Message Input -->
+              <form id="client-chat-form" onsubmit="sendClientChatMessage(event)" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; background: var(--secondary);">
+                <input type="text" id="client-chat-input" placeholder="Digite sua dúvida ou mensagem de suporte..." required style="flex: 1; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.9rem; outline: none;" autocomplete="off">
+                <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; justify-content: center; min-width: 100px;">
+                  <span>Enviar</span> <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                </button>
+              </form>
             </div>
           </div>
 

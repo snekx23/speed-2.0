@@ -9,7 +9,9 @@ let riderMap = null;      // Leaflet map instance
 let realtimeChannel = null;
 let watchId = null;       // geolocation watch ID
 let lastPosition = null;  // { lat, lng }
+let hasCenteredOnce = false;
 let knownActiveTeleIds = null; // IDs of active deliveries to play chime on new arrivals
+let currentPendingTele = null; // Current pending tele displayed in the modal
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +40,46 @@ document.addEventListener('DOMContentLoaded', () => {
 function registerSW() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+}
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.log('Notification API not supported by browser.');
+    return;
+  }
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showPWAToast('Notificações ativadas! 🔔');
+      }
+    });
+  }
+}
+
+function sendWebNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    console.log('Notifications not permitted or not supported.');
+    return;
+  }
+
+  // Try showing notification via Service Worker registration
+  if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification(title, {
+        body: body,
+        icon: '/logo.jpg',
+        badge: '/logo.jpg',
+        vibrate: [200, 100, 200],
+        tag: 'speed-delivery-notif',
+        renotify: true
+      });
+    }).catch(err => {
+      console.warn("ServiceWorker notification failed, fallback to Notification construct:", err);
+      new Notification(title, { body, icon: '/logo.jpg' });
+    });
+  } else {
+    new Notification(title, { body, icon: '/logo.jpg' });
   }
 }
 
@@ -100,6 +142,7 @@ function handleMotoLogout() {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   currentRider = null;
   knownActiveTeleIds = null;
+  hasCenteredOnce = false;
   document.getElementById('pwa-app').classList.add('hidden');
   document.getElementById('pwa-login').classList.remove('hidden');
   document.getElementById('moto-id').value = '';
@@ -132,9 +175,14 @@ function showApp() {
   loadLocalProfile();
   loadWeeklyBalance();
 
+  // Request notification permissions
+  requestNotificationPermission();
+
   // Switch to map tab by default
+  hasCenteredOnce = false;
   switchPWATab('map');
   subscribeRealtime();
+  updateSystemTelesCount(); // Update badge on load
   lucide.createIcons();
 }
 
@@ -201,6 +249,7 @@ async function toggleConnectionState() {
     setRiderStatusBadge('Disponível');
     updateConnectionButtonState('Disponível');
     showPWAToast('Você está online!');
+    requestNotificationPermission();
   } else {
     // Disconnect -> check if there are active deliveries
     btn.disabled = true;
@@ -267,6 +316,8 @@ function switchPWATab(tab) {
     }, 100);
   } else if (tab === 'reports') {
     loadReportsData();
+  } else if (tab === 'system-teles') {
+    loadSystemTeles();
   }
   lucide.createIcons();
 }
@@ -459,16 +510,219 @@ function subscribeRealtime() {
   if (!db || !currentRider) return;
   if (realtimeChannel) db.removeChannel(realtimeChannel);
 
-  realtimeChannel = db.channel('moto-deliveries-' + currentRider.id)
+  realtimeChannel = db.channel('moto-realtime-' + currentRider.id)
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
-      table: 'client_history',
-      filter: `rider=eq.${currentRider.name}`
-    }, () => {
-      loadMyDeliveries();
+      table: 'client_history'
+    }, (payload) => {
+      const riderName = currentRider.name;
+      
+      if (payload.eventType === 'INSERT') {
+        if (payload.new.rider === riderName) {
+          sendWebNotification("Nova Tele Atribuída! 🏍️", `A tele ${payload.new.id} foi atribuída a você.`);
+          playNotificationSound();
+          loadMyDeliveries();
+        }
+      } else if (payload.eventType === 'DELETE') {
+        const wasMine = payload.old && (payload.old.rider === riderName || (knownActiveTeleIds && knownActiveTeleIds.includes(payload.old.id)));
+        if (wasMine) {
+          sendWebNotification("Tele Removida! ❌", `A tele ${payload.old.id} foi removida de você.`);
+          playNotificationSound();
+          loadMyDeliveries();
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const wasMine = payload.old && payload.old.rider === riderName;
+        const isMine = payload.new && payload.new.rider === riderName;
+        
+        if (!wasMine && isMine) {
+          sendWebNotification("Nova Tele Atribuída! 🏍️", `A tele ${payload.new.id} foi atribuída a você.`);
+          playNotificationSound();
+          loadMyDeliveries();
+        } else if (wasMine && !isMine) {
+          sendWebNotification("Tele Removida! ❌", `A tele ${payload.new.id} foi removida de você.`);
+          playNotificationSound();
+          loadMyDeliveries();
+        } else if (isMine) {
+          loadMyDeliveries();
+        }
+      }
+    })
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'pending_deliveries'
+    }, (payload) => {
+      playNotificationSound();
+      sendWebNotification("Nova Tele no Sistema! 🔔", `Uma nova tele de ${payload.new.client || 'comércio'} está disponível.`);
+      updateSystemTelesCount();
+      showPWAToast(`Nova tele disponível no sistema: ${payload.new.id}`);
+      if (document.getElementById('pwa-tab-system-teles') && !document.getElementById('pwa-tab-system-teles').classList.contains('hidden')) {
+        loadSystemTeles();
+      }
+    })
+    .on('postgres_changes', {
+      event: 'DELETE',
+      schema: 'public',
+      table: 'pending_deliveries'
+    }, (payload) => {
+      updateSystemTelesCount();
+      if (document.getElementById('pwa-tab-system-teles') && !document.getElementById('pwa-tab-system-teles').classList.contains('hidden')) {
+        loadSystemTeles();
+      }
+      if (currentPendingTele && currentPendingTele.id === payload.old.id) {
+        closePendingTeleModal();
+        showPWAToast(`A tele ${payload.old.id} não está mais disponível.`);
+      }
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'pending_deliveries'
+    }, (payload) => {
+      const tele = payload.new;
+      updateSystemTelesCount();
+      if (document.getElementById('pwa-tab-system-teles') && !document.getElementById('pwa-tab-system-teles').classList.contains('hidden')) {
+        loadSystemTeles();
+      }
+
+      // If bidding started and not yet assigned
+      if (tele.bidding_started_at) {
+        const startTime = new Date(tele.bidding_started_at).getTime();
+        const nowTime = new Date().getTime();
+        const elapsed = nowTime - startTime;
+        const remaining = 10000 - elapsed;
+
+        if (remaining > 0) {
+          setTimeout(async () => {
+            if (db) {
+              await db.rpc('assign_delivery_to_closest_rider', { p_delivery_id: tele.id });
+            }
+          }, remaining);
+        } else {
+          if (db) {
+            db.rpc('assign_delivery_to_closest_rider', { p_delivery_id: tele.id });
+          }
+        }
+      }
     })
     .subscribe();
+}
+
+function showPendingTeleModal(tele) {
+  currentPendingTele = tele;
+  
+  const idEl = document.getElementById('pending-tele-id');
+  const clientEl = document.getElementById('pending-tele-client');
+  const addressEl = document.getElementById('pending-tele-address');
+  const distEl = document.getElementById('pending-tele-dist');
+  const priceEl = document.getElementById('pending-tele-price');
+  
+  if (idEl) idEl.innerText = tele.id || '';
+  if (clientEl) clientEl.innerText = tele.client || 'Speed Coleta';
+  if (addressEl) addressEl.innerText = tele.address || 'Destino';
+  if (distEl) distEl.innerText = tele.dist || '0 km';
+  if (priceEl) priceEl.innerText = tele.price || 'R$ 0,00';
+  
+  const modal = document.getElementById('pwa-pending-tele-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+}
+
+function closePendingTeleModal() {
+  const modal = document.getElementById('pwa-pending-tele-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+  currentPendingTele = null;
+}
+
+async function acceptSelectedPendingTele() {
+  if (!db || !currentRider || !currentPendingTele) return;
+  
+  if (!lastPosition) {
+    alert("Para aceitar a tele, por favor ative seu GPS e permita o acesso à localização.");
+    return;
+  }
+
+  const btn = document.getElementById('pending-tele-accept-btn');
+  const oldText = btn ? btn.innerText : 'Aceitar';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = 'Registrando Aceite...';
+  }
+  
+  const tele = currentPendingTele;
+  
+  try {
+    // 1. Calculate distance from rider to pickup point (restaurant)
+    const pickupLat = parseFloat(tele.pickup_lat) || -23.55052;
+    const pickupLng = parseFloat(tele.pickup_lng) || -46.633308;
+    const distToPickup = calculateHaversineDistance(lastPosition.lat, lastPosition.lng, pickupLat, pickupLng);
+
+    // 2. Insert bid to delivery_bids table
+    const { error: bidErr } = await db
+      .from('delivery_bids')
+      .insert([{
+        delivery_id: tele.id,
+        rider_id: currentRider.id,
+        rider_name: currentRider.name,
+        distance_to_pickup: distToPickup
+      }]);
+
+    if (bidErr) {
+      console.error("Error inserting bid:", bidErr);
+      alert("Erro ao registrar seu aceite. Tente novamente.");
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = oldText;
+      }
+      return;
+    }
+
+    // 3. Try to start the 10-second bidding window atomically if not already started
+    const { data: updateData, error: updateErr } = await db
+      .from('pending_deliveries')
+      .update({ bidding_started_at: new Date().toISOString() })
+      .eq('id', tele.id)
+      .is('bidding_started_at', null)
+      .select();
+
+    if (updateErr) {
+      console.error("Error setting bidding window start time:", updateErr);
+    }
+
+    // If this client successfully started the bidding window, start local 10s assignment execution fallback
+    if (updateData && updateData.length > 0) {
+      setTimeout(async () => {
+        if (db) {
+          await db.rpc('assign_delivery_to_closest_rider', { p_delivery_id: tele.id });
+        }
+      }, 10000);
+    }
+
+    // 4. Update button UI to show confirmation waiting status
+    if (btn) {
+      btn.innerText = 'Aguardando Aproximação...';
+      btn.style.background = '#8e8e9f';
+    }
+    
+    showPWAToast("Aceite registrado! Analisando motoboy mais próximo (~10 segundos)...");
+    
+    // Close modal after 3 seconds so motoboy returns to map while waiting
+    setTimeout(() => {
+      closePendingTeleModal();
+    }, 3000);
+
+  } catch (err) {
+    console.error('Error accepting tele:', err);
+    alert('Erro de conexão ao aceitar tele.');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = oldText;
+    }
+  }
 }
 
 // ─── MAP ─────────────────────────────────────────────────────────────────────
@@ -507,16 +761,27 @@ function placeRiderMarker(lat, lng) {
     riderMarker.bindPopup(`<strong>${currentRider ? currentRider.name : 'Você'}</strong><br>Sua localização atual`);
   }
 
-  riderMap.setView([lat, lng], 15);
+  if (!hasCenteredOnce) {
+    riderMap.setView([lat, lng], 15);
+    hasCenteredOnce = true;
+  }
 }
 
 function startGeolocation() {
   if (!navigator.geolocation) return;
 
   watchId = navigator.geolocation.watchPosition(
-    (pos) => {
+    async (pos) => {
       lastPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       if (riderMap) placeRiderMarker(lastPosition.lat, lastPosition.lng);
+
+      // Update location in Supabase fleet table in real-time
+      if (db && currentRider) {
+        await db
+          .from('fleet')
+          .update({ lat: lastPosition.lat, lng: lastPosition.lng })
+          .eq('id', currentRider.id);
+      }
     },
     () => {},
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
@@ -863,31 +1128,6 @@ function updateMapOverlays(deliveries) {
       badge.classList.add('hidden');
     }
   }
-
-  // Quick confirm button display logic
-  const activeTele = (deliveries || []).find(t => t.status === 'A caminho da coleta' || t.status === 'Em rota de entrega');
-  const quickActionBtn = document.getElementById('map-quick-action-btn');
-  if (quickActionBtn) {
-    if (activeTele) {
-      quickActionBtn.dataset.teleId = activeTele.id;
-      quickActionBtn.dataset.teleStatus = activeTele.status;
-      
-      if (activeTele.status === 'A caminho da coleta') {
-        quickActionBtn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        `;
-        quickActionBtn.title = "Confirmar Coleta";
-      } else {
-        quickActionBtn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        `;
-        quickActionBtn.title = "Confirmar Entrega";
-      }
-      quickActionBtn.classList.remove('hidden');
-    } else {
-      quickActionBtn.classList.add('hidden');
-    }
-  }
 }
 
 function triggerQuickAction() {
@@ -1048,3 +1288,139 @@ window.addEventListener('appinstalled', () => {
   if (loginInstallBtn) loginInstallBtn.classList.add('hidden');
   if (drawerInstallBtn) drawerInstallBtn.classList.add('hidden');
 });
+
+// ─── NEW SYSTEM TELES & MATCHMAKING SUPPORT ────────────────────────────────────
+
+async function loadSystemTeles() {
+  const container = document.getElementById('pwa-system-teles-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="pwa-loading">
+      <div class="pwa-spinner"></div>
+      <p>Carregando teles do sistema...</p>
+    </div>
+  `;
+
+  if (!db) return;
+
+  try {
+    const { data, error } = await db
+      .from('pending_deliveries')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    renderSystemTelesList(data || []);
+  } catch (err) {
+    console.error("Error loading system teles:", err);
+    container.innerHTML = `<p class="pwa-empty-msg">Erro ao carregar teles do sistema.</p>`;
+  }
+}
+
+function renderSystemTelesList(teles) {
+  const container = document.getElementById('pwa-system-teles-container');
+  if (!container) return;
+
+  if (teles.length === 0) {
+    container.innerHTML = `
+      <div class="pwa-empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <p>Nenhuma tele pendente no sistema.</p>
+        <span>Aguarde novas chamadas dos comércios.</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = '';
+  teles.forEach(order => {
+    const card = document.createElement('div');
+    card.className = 'pwa-tele-card';
+    card.innerHTML = `
+      <div class="pwa-tele-header">
+        <strong class="pwa-tele-id">${order.id}</strong>
+        <span class="pwa-tele-status status-warning" style="background: rgba(245,158,11,0.15); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">Pendente</span>
+      </div>
+      <div class="pwa-tele-body">
+        <div class="pwa-tele-row" style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <strong style="color: var(--primary); font-size: 0.88rem;">Origem: ${order.client}</strong>
+        </div>
+        <div class="pwa-tele-row" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Destino: ${order.address}</span>
+        </div>
+        <div class="pwa-tele-row pwa-tele-meta" style="margin-top: 8px; display: flex; justify-content: space-between;">
+          <span>Distância: <strong>${order.dist}</strong></span>
+          <span>Taxa: <strong class="pwa-highlight" style="color: var(--primary);">${order.price}</strong></span>
+        </div>
+        <div class="pwa-tele-row pwa-tele-meta" style="margin-top: 4px; font-size: 0.78rem; color: var(--text-muted);">
+          <span>Pagamento: <strong>${order.payment}</strong></span>
+        </div>
+      </div>
+      <div class="pwa-tele-footer" style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="pwa-btn pwa-btn-primary" onclick="showPendingTeleModalById('${order.id}')" style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-weight: 600;">
+          Visualizar & Aceitar
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function showPendingTeleModalById(teleId) {
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from('pending_deliveries')
+      .select('*')
+      .eq('id', teleId)
+      .single();
+
+    if (error || !data) {
+      showPWAToast("Tele não está mais disponível.");
+      loadSystemTeles();
+      return;
+    }
+
+    showPendingTeleModal(data);
+  } catch (err) {
+    console.error("Error loading tele details:", err);
+  }
+}
+
+async function updateSystemTelesCount() {
+  if (!db) return;
+  try {
+    const { count, error } = await db
+      .from('pending_deliveries')
+      .select('*', { count: 'exact', head: true });
+    
+    if (!error) {
+      const badge = document.getElementById('map-system-teles-badge');
+      if (badge) {
+        if (count > 0) {
+          badge.innerText = count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error updating system teles count:", err);
+  }
+}
+
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}

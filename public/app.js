@@ -36,12 +36,18 @@ function escapeHtml(value) {
 }
 
 // Global Chart and Map variables to allow proper reset/destroy
-let ownerOverviewChart = null;
-let ownerFinancialChart = null;
-let clientOverviewChart = null;
-let ownerFleetMap = null;
 let selectedRiderId = null;
 let selectedMapRiderId = null;
+let trackingMapInstance = null;
+let trackingRiderMarker = null;
+let trackingPickupMarker = null;
+let trackingDestMarker = null;
+let trackingRouteLine = null;
+let trackingRealtimeChannel = null;
+// Global support chat variables
+let activeChatClientEmail = null;
+let activeChatClientName = null;
+let supportChatChannel = null;
 let clientRatings = [
   { score: 5, title: 'Entrega rápida e cordial', comment: 'Motoboy chegou antes do prazo e manteve o pedido em perfeito estado.', date: 'Hoje, 14:20' },
   { score: 5, title: 'Coleta sem espera', comment: 'Fluxo funcionou bem no horário de pico.', date: 'Ontem, 21:10' },
@@ -331,6 +337,9 @@ async function loginSuccess() {
     // Switch to first owner tab
     switchDashboardTab('owner-overview');
     
+    // Subscribe to support realtime notifications immediately on login
+    subscribeSupportRealtime();
+    
     // Render Fleet table
     renderFleetTable();
   } else if (profile === 'client') {
@@ -344,6 +353,9 @@ async function loginSuccess() {
 
     // Switch to first client tab
     switchDashboardTab('client-overview');
+    
+    // Subscribe to support realtime notifications immediately on login
+    subscribeSupportRealtime();
     
     // Render History table
     renderClientHistoryTable();
@@ -368,6 +380,23 @@ function handleLogout() {
 
   // Clear session from local storage
   localStorage.removeItem('loggedInProfile');
+
+  // Remove active chat subscription if any
+  if (supabaseClient && supportChatChannel) {
+    supabaseClient.removeChannel(supportChatChannel);
+    supportChatChannel = null;
+  }
+  activeChatClientEmail = null;
+  activeChatClientName = null;
+
+  // Reset delivery request map
+  if (requestDeliveryMap) {
+    requestDeliveryMap.remove();
+    requestDeliveryMap = null;
+  }
+  requestDeliveryMarker = null;
+  restaurantMarker = null;
+  requestDeliveryRouteLine = null;
 
   setTimeout(() => {
     loader.classList.add('hidden');
@@ -427,6 +456,18 @@ async function switchDashboardTab(targetTab) {
     renderClientHistoryTable();
   } else if (targetTab === 'client-ratings') {
     renderClientRatings();
+  } else if (targetTab === 'order-request') {
+    initRequestDeliveryMap();
+  } else if (targetTab === 'client-support') {
+    const dot = document.getElementById('client-chat-dot');
+    if (dot) dot.classList.add('hidden');
+    await loadClientChatHistory();
+    subscribeSupportRealtime();
+  } else if (targetTab === 'owner-support') {
+    const dot = document.getElementById('admin-chat-dot');
+    if (dot) dot.classList.add('hidden');
+    await loadAdminChatChannels();
+    subscribeSupportRealtime();
   }
 }
 
@@ -642,6 +683,14 @@ function renderClientHistoryTable() {
   tbody.innerHTML = '';
   mockData.clientHistory.forEach(order => {
     const tr = document.createElement('tr');
+    const isActive = order.status !== 'Entregue' && order.status !== 'Concluído';
+    const statusHtml = `
+      <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+        <span class="status-indicator ${order.statusClass}">${order.status}</span>
+        ${isActive ? `<button class="btn btn-secondary btn-sm" onclick="trackActiveOrder('${order.id}')" style="padding: 2px 8px; font-size: 0.75rem; cursor: pointer; border: 1px solid var(--border-color); background: var(--secondary); color: var(--color-text);">Rastrear</button>` : ''}
+      </div>
+    `;
+
     tr.innerHTML = `
       <td><strong>${order.id}</strong></td>
       <td>
@@ -652,7 +701,7 @@ function renderClientHistoryTable() {
       <td>${order.dist}</td>
       <td><strong class="text-yellow">${order.price}</strong></td>
       <td>${order.date}</td>
-      <td><span class="status-indicator ${order.statusClass}">${order.status}</span></td>
+      <td>${statusHtml}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -729,6 +778,25 @@ async function submitDeliveryRequest(event) {
   // Format cargo name
   const cargoStr = cargoType === 'lanche' ? '🍔 Lanches e Bebidas' : (cargoType === 'pizza' ? '🍕 Pizza Família' : (cargoType === 'doce' ? '🍩 Doces e Sobremesas' : '📄 Papelada / Documentos'));
 
+  let pickupLat = -23.55052;
+  let pickupLng = -46.633308;
+  if (restaurantMarker) {
+    const latlng = restaurantMarker.getLatLng();
+    pickupLat = latlng.lat;
+    pickupLng = latlng.lng;
+  } else if (Array.isArray(requestDeliveryCenterCoords)) {
+    pickupLat = requestDeliveryCenterCoords[0];
+    pickupLng = requestDeliveryCenterCoords[1];
+  }
+
+  let destLat = null;
+  let destLng = null;
+  if (requestDeliveryMarker) {
+    const destLatLng = requestDeliveryMarker.getLatLng();
+    destLat = destLatLng.lat;
+    destLng = destLatLng.lng;
+  }
+
   // Create delivery payload for Supabase
   const newDelivery = {
     id: randomId,
@@ -738,7 +806,11 @@ async function submitDeliveryRequest(event) {
     dist: window.lastEstimate.distance,
     price: window.lastEstimate.price,
     payment: paymentStr,
-    cargo: cargoStr
+    cargo: cargoStr,
+    pickup_lat: pickupLat,
+    pickup_lng: pickupLng,
+    dest_lat: destLat,
+    dest_lng: destLng
   };
 
   // Insert to Supabase pending_deliveries table
@@ -794,24 +866,28 @@ async function submitDeliveryRequest(event) {
   // Hide Courier Profile card inside tracker initially
   document.getElementById('tracker-courier-box').classList.add('hidden');
 
-  // Reset map motorcycle position to base starting location
-  const moto = document.getElementById('map-moto');
-  if (moto) {
-    moto.style.transition = 'none';
-    moto.style.top = '40%';
-    moto.style.left = '10%';
-  }
-
   // Switch view to tracking
   switchDashboardTab('order-tracking');
 
-  // Trigger simulated logistics loop
-  runLogisticsSimulation(newOrder);
+  // Trigger real-time logistics tracking
+  startRealtimeTracking(newDelivery);
 
   // Reset Request Form
   document.getElementById('order-request-form').reset();
   document.getElementById('estimate-box').classList.add('hidden');
   window.lastEstimate = null;
+
+  // Reset request map markers
+  if (requestDeliveryMap) {
+    if (requestDeliveryMarker) {
+      requestDeliveryMap.removeLayer(requestDeliveryMarker);
+      requestDeliveryMarker = null;
+    }
+    if (requestDeliveryRouteLine) {
+      requestDeliveryMap.removeLayer(requestDeliveryRouteLine);
+      requestDeliveryRouteLine = null;
+    }
+  }
 }
 
 // Reset tracking tab to disabled once finished or logged out
@@ -820,6 +896,18 @@ function resetTrackedOrder() {
   if (trackingTabBtn) {
     trackingTabBtn.disabled = true;
     trackingTabBtn.querySelector('.pulse-dot').classList.add('hidden');
+  }
+
+  if (trackingRealtimeChannel) {
+    if (supabaseClient) {
+      supabaseClient.removeChannel(trackingRealtimeChannel);
+    }
+    trackingRealtimeChannel = null;
+  }
+
+  if (trackingMapInstance) {
+    trackingMapInstance.remove();
+    trackingMapInstance = null;
   }
 }
 
@@ -1812,8 +1900,62 @@ function clearNotifications(event) {
       <p style="font-size: 0.9rem;">Nenhuma notificação pendente.</p>
     </div>
   `;
-  document.getElementById('bell-badge').style.display = 'none';
+  const badge = document.getElementById('bell-badge');
+  if (badge) {
+    badge.style.display = 'none';
+    badge.textContent = '0';
+  }
   lucide.createIcons();
+}
+
+// Helper to add notification to the topbar bell dropdown and play toast
+function addBellNotification(title, type = 'chat') {
+  const badge = document.getElementById('bell-badge');
+  if (badge) {
+    badge.style.display = 'flex';
+    let count = parseInt(badge.textContent) || 0;
+    count++;
+    badge.textContent = count;
+  }
+
+  const list = document.getElementById('notification-list');
+  if (list) {
+    // If the list is empty (default placeholder), remove it
+    if (list.querySelector('[data-lucide="check-circle"]') || list.innerHTML.includes('Nenhuma notificação pendente')) {
+      list.innerHTML = '';
+    }
+
+    // Select icon and bg color based on type
+    let icon = 'bell';
+    let bgClass = 'bg-primary';
+    if (type === 'chat') {
+      icon = 'message-square';
+      bgClass = 'bg-cyan';
+    } else if (type === 'alert') {
+      icon = 'alert-triangle';
+      bgClass = 'bg-yellow';
+    }
+
+    const notifItem = document.createElement('div');
+    notifItem.className = 'notif-item unread';
+    notifItem.innerHTML = `
+      <div class="notif-icon ${bgClass}"><i data-lucide="${icon}"></i></div>
+      <div class="notif-content">
+        <p>${title}</p>
+        <span class="notif-time">Agora</span>
+      </div>
+    `;
+
+    // Insert at the top of the list
+    list.insertBefore(notifItem, list.firstChild);
+    
+    // Recompile Lucide icons so the new icon renders properly
+    lucide.createIcons();
+  }
+
+  // Show dynamic toast notification (stripping html tags)
+  const cleanTitle = title.replace(/<\/?[^>]+(>|$)/g, "");
+  showToastNotification(cleanTitle);
 }
 
 // Close notification panel when clicking outside
@@ -2092,3 +2234,875 @@ window.closeDownloadApp = function(event) {
   }
   modal.classList.add('hidden');
 };
+
+// ─── SUPPORT CHAT IMPLEMENTATION ─────────────────────────────────────────────
+
+// Helper to create message bubbles
+function createMessageBubble(msg, currentRole) {
+  const isMe = msg.sender_role === currentRole;
+  const alignStyle = isMe ? 'align-self: flex-end; align-items: flex-end;' : 'align-self: flex-start; align-items: flex-start;';
+  
+  // Premium gradients/colors for bubbles
+  const bubbleStyle = isMe 
+    ? 'background: linear-gradient(135deg, #00aeef, #0077b5); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(0, 174, 239, 0.25);'
+    : 'background: #272732; border: 1px solid var(--border-color); color: var(--color-text); border-radius: 16px 16px 16px 2px;';
+  
+  const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora';
+
+  return `
+    <div style="display: flex; flex-direction: column; max-width: 70%; ${alignStyle}">
+      <span style="font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">${msg.sender_name}</span>
+      <div style="padding: 10px 16px; font-size: 0.88rem; line-height: 1.45; word-break: break-word; ${bubbleStyle}">
+        ${escapeHtml(msg.message)}
+      </div>
+      <span style="font-size: 0.65rem; color: var(--color-text-muted); margin-top: 4px;">${time}</span>
+    </div>
+  `;
+}
+
+// ─── CLIENT CHAT LOGIC ────────────────────────────────────────────────────────
+
+async function loadClientChatHistory() {
+  const container = document.getElementById('client-chat-messages');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+      <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
+  `;
+
+  if (!supabaseClient) return;
+
+  const creds = mockData.credentials[mockData.activeProfile];
+  if (!creds) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('support_messages')
+      .select('*')
+      .eq('client_email', creds.email)
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    renderClientMessages(data || []);
+  } catch (err) {
+    console.error("Error loading client chat history:", err);
+    container.innerHTML = `<p class="text-muted" style="text-align: center; margin-top: 20px;">Erro ao carregar mensagens. Tente novamente.</p>`;
+  }
+}
+
+function renderClientMessages(messages) {
+  const container = document.getElementById('client-chat-messages');
+  if (!container) return;
+
+  if (messages.length === 0) {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--color-text-muted); gap: 12px; padding: 20px;">
+        <i data-lucide="message-square" style="width: 36px; height: 36px; color: var(--color-text-muted);"></i>
+        <p style="font-size: 0.85rem; margin: 0;">Nenhuma mensagem enviada ainda.</p>
+        <p style="font-size: 0.78rem; margin: 0; color: var(--color-text-muted);">Envie uma mensagem abaixo para falar com o suporte administrativo.</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = messages.map(msg => createMessageBubble(msg, 'client')).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendClientChatMessage(event) {
+  if (event) event.preventDefault();
+
+  const input = document.getElementById('client-chat-input');
+  if (!input) return;
+
+  const val = input.value.trim();
+  if (!val) return;
+
+  if (!supabaseClient) return;
+
+  const creds = mockData.credentials[mockData.activeProfile];
+  if (!creds) return;
+
+  input.value = ''; // Clear input immediately for responsive feel
+
+  try {
+    const { error } = await supabaseClient
+      .from('support_messages')
+      .insert([{
+        client_email: creds.email,
+        sender_role: 'client',
+        sender_name: creds.name,
+        message: val
+      }]);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Error sending client chat message:", err);
+    showToastNotification("Erro ao enviar mensagem.");
+  }
+}
+
+function appendAndScrollClient(msg) {
+  const container = document.getElementById('client-chat-messages');
+  if (!container) return;
+
+  // If there was empty state message, clear it
+  const emptyState = container.querySelector('[data-lucide="message-square"]');
+  if (emptyState) {
+    container.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  div.style.display = 'contents';
+  div.innerHTML = createMessageBubble(msg, 'client');
+  container.appendChild(div);
+  
+  // Smooth scroll to bottom
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+// ─── ADMIN CHAT LOGIC ─────────────────────────────────────────────────────────
+
+async function loadAdminChatChannels() {
+  const listContainer = document.getElementById('admin-chat-channels-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; padding: 20px;">
+      <div style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
+  `;
+
+  if (!supabaseClient) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('support_messages')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    // Group by unique client_email
+    const clientsMap = {};
+    (data || []).forEach(msg => {
+      clientsMap[msg.client_email] = {
+        email: msg.client_email,
+        name: msg.sender_role === 'client' ? msg.sender_name : (clientsMap[msg.client_email]?.name || 'Cliente Speed'),
+        lastMessage: msg.message,
+        time: new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+    });
+
+    // Ensure all three mock client restaurants are always listed
+    const defaultClients = [
+      { email: 'gerente@burgerchef.com.br', name: 'Burger do Chef (Roberto)' },
+      { email: 'gerente@bellaitalia.com.br', name: 'Pizzaria Bella Italia' },
+      { email: 'gerente@subwaygrill.com.br', name: 'Subway Grill' }
+    ];
+    
+    defaultClients.forEach(c => {
+      if (!clientsMap[c.email]) {
+        clientsMap[c.email] = {
+          email: c.email,
+          name: c.name,
+          lastMessage: 'Sem mensagens anteriores',
+          time: ''
+        };
+      }
+    });
+
+    const channels = Object.values(clientsMap);
+    renderAdminChatChannels(channels);
+  } catch (err) {
+    console.error("Error loading admin chat channels:", err);
+    listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 10px;">Erro ao carregar conversas.</p>`;
+  }
+}
+
+function renderAdminChatChannels(channels) {
+  const listContainer = document.getElementById('admin-chat-channels-list');
+  if (!listContainer) return;
+
+  if (channels.length === 0) {
+    listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 20px;">Nenhuma conversa ativa.</p>`;
+    return;
+  }
+
+  listContainer.innerHTML = channels.map(chan => {
+    const isActive = activeChatClientEmail === chan.email;
+    const activeBg = isActive ? 'background: rgba(255, 255, 255, 0.08); border-left: 3px solid var(--accent-cyan);' : 'border-left: 3px solid transparent;';
+    const highlightHover = 'this.style.background=\'rgba(255, 255, 255, 0.05)\'';
+    const normalBg = isActive ? 'this.style.background=\'rgba(255, 255, 255, 0.08)\'' : 'this.style.background=\'transparent\'';
+
+    return `
+      <div class="chat-channel-item" onclick="selectAdminChatChannel('${chan.email}', '${chan.name.replace(/'/g, "\\'")}')" 
+           onmouseover="${highlightHover}" onmouseout="${normalBg}"
+           style="padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; ${activeBg}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.88rem; color: var(--color-text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${chan.name}</strong>
+          <span style="font-size: 0.68rem; color: var(--color-text-muted);">${chan.time}</span>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--color-text-muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${chan.lastMessage}</p>
+      </div>
+    `;
+  }).join('');
+}
+
+async function selectAdminChatChannel(email, name) {
+  activeChatClientEmail = email;
+  activeChatClientName = name;
+
+  // Clear admin chat dot when selecting a channel
+  const adminDot = document.getElementById('admin-chat-dot');
+  if (adminDot) adminDot.classList.add('hidden');
+
+  // Toggle UI visibility
+  document.getElementById('admin-chat-no-selection').classList.add('hidden');
+  document.getElementById('admin-chat-window-pane').classList.remove('hidden');
+
+  // Fill Header details
+  document.getElementById('admin-chat-client-title').innerText = name;
+  document.getElementById('admin-chat-client-subtitle').innerText = email;
+
+  // Render channels again to update active tab highlight
+  loadAdminChatChannels();
+
+  // Load chat history for this client
+  const chatMessages = document.getElementById('admin-chat-messages');
+  if (chatMessages) {
+    chatMessages.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+        <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    `;
+  }
+
+  if (!supabaseClient) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('support_messages')
+      .select('*')
+      .eq('client_email', email)
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    renderAdminMessages(data || []);
+  } catch (err) {
+    console.error("Error fetching messages for admin:", err);
+    if (chatMessages) chatMessages.innerHTML = `<p class="text-muted" style="text-align: center; margin-top: 20px;">Erro ao carregar mensagens.</p>`;
+  }
+}
+
+function renderAdminMessages(messages) {
+  const container = document.getElementById('admin-chat-messages');
+  if (!container) return;
+
+  if (messages.length === 0) {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--color-text-muted); gap: 8px;">
+        <p style="font-size: 0.85rem; margin: 0;">Sem mensagens nesta conversa.</p>
+        <p style="font-size: 0.78rem; margin: 0; color: var(--color-text-muted);">Envie uma resposta abaixo para iniciar a conversa.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = messages.map(msg => createMessageBubble(msg, 'admin')).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendAdminChatMessage(event) {
+  if (event) event.preventDefault();
+
+  const input = document.getElementById('admin-chat-input');
+  if (!input) return;
+
+  const val = input.value.trim();
+  if (!val) return;
+
+  if (!supabaseClient || !activeChatClientEmail) return;
+
+  const creds = mockData.credentials['owner'];
+  if (!creds) return;
+
+  input.value = ''; // Responsive feedback clear
+
+  try {
+    const { error } = await supabaseClient
+      .from('support_messages')
+      .insert([{
+        client_email: activeChatClientEmail,
+        sender_role: 'admin',
+        sender_name: creds.name,
+        message: val
+      }]);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Error sending admin message:", err);
+    showToastNotification("Erro ao enviar resposta.");
+  }
+}
+
+function appendAndScrollAdmin(msg) {
+  const container = document.getElementById('admin-chat-messages');
+  if (!container) return;
+
+  const emptyMsg = container.querySelector('p');
+  if (emptyMsg && emptyMsg.innerText.includes('Sem mensagens')) {
+    container.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  div.style.display = 'contents';
+  div.innerHTML = createMessageBubble(msg, 'admin');
+  container.appendChild(div);
+
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+// ─── REALTIME SUPPORT SUBSCRIPTION ───────────────────────────────────────────
+
+function subscribeSupportRealtime() {
+  if (!supabaseClient) return;
+
+  if (supportChatChannel) {
+    supabaseClient.removeChannel(supportChatChannel);
+  }
+
+  supportChatChannel = supabaseClient.channel('realtime-support-channel')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'support_messages'
+    }, (payload) => {
+      const newMsg = payload.new;
+      const currentRole = mockData.activeProfile;
+
+      if (currentRole === 'owner') {
+        // Admin View: reload conversations list to show last message
+        loadAdminChatChannels();
+
+        if (newMsg.sender_role === 'client') {
+          // Add notification to bell
+          addBellNotification(`<strong>${escapeHtml(newMsg.sender_name)}</strong>: ${escapeHtml(newMsg.message)}`, 'chat');
+
+          // If not currently on owner-support, or active conversation does not match, show sidebar dot
+          const isOwnerSupportActive = document.getElementById('tab-owner-support') && document.getElementById('tab-owner-support').classList.contains('active');
+          if (!isOwnerSupportActive || activeChatClientEmail !== newMsg.client_email) {
+            const adminDot = document.getElementById('admin-chat-dot');
+            if (adminDot) adminDot.classList.remove('hidden');
+          }
+        }
+
+        // If active conversation matches, append message bubble
+        if (activeChatClientEmail === newMsg.client_email) {
+          appendAndScrollAdmin(newMsg);
+        }
+      } else {
+        // Client/Merchant View
+        const creds = mockData.credentials[currentRole];
+        if (creds && creds.email === newMsg.client_email) {
+          if (newMsg.sender_role === 'admin') {
+            // Add notification to bell
+            addBellNotification(`<strong>Suporte</strong>: ${escapeHtml(newMsg.message)}`, 'chat');
+
+            // If not currently on client-support, show sidebar dot
+            const isClientSupportActive = document.getElementById('tab-client-support') && document.getElementById('tab-client-support').classList.contains('active');
+            if (!isClientSupportActive) {
+              const clientDot = document.getElementById('client-chat-dot');
+              if (clientDot) clientDot.classList.remove('hidden');
+            }
+          }
+
+          // Always append to chat messages
+          appendAndScrollClient(newMsg);
+        }
+      }
+    })
+    .subscribe();
+}
+
+// ─── REQUEST DELIVERY MAP ─────────────────────────────────────────────────────
+
+let requestDeliveryMap = null;
+let requestDeliveryMarker = null;
+let restaurantMarker = null;
+let requestDeliveryRouteLine = null;
+let requestDeliveryCenterCoords = [-23.55052, -46.633308]; // Fallback coordinates (São Paulo)
+
+function initRequestDeliveryMap() {
+  const mapContainer = document.getElementById('request-delivery-map');
+  if (!mapContainer) return;
+
+  // If map is already initialized, just invalidate size so it redraws correctly
+  if (requestDeliveryMap) {
+    setTimeout(() => {
+      requestDeliveryMap.invalidateSize();
+    }, 100);
+    return;
+  }
+
+  // Create map instance
+  requestDeliveryMap = L.map('request-delivery-map', { attributionControl: false }).setView(requestDeliveryCenterCoords, 14);
+
+  // CartoDB Dark Matter tile layer for premium dark aesthetics
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20
+  }).addTo(requestDeliveryMap);
+
+  // Initialize restaurant marker HTML
+  const restaurantIconHtml = `
+    <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
+      <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
+      <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
+    </div>
+  `;
+  const restaurantIcon = L.divIcon({
+    html: restaurantIconHtml,
+    className: 'custom-div-icon',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+
+  // Try to fetch user geolocation to center map on the client's city
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        requestDeliveryCenterCoords = [position.coords.latitude, position.coords.longitude];
+        requestDeliveryMap.setView(requestDeliveryCenterCoords, 14);
+        
+        // Add restaurant marker at center
+        restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
+        restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
+      },
+      (error) => {
+        console.warn("Geolocation failed or denied. Using fallback coordinates.", error);
+        restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
+        restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
+      }
+    );
+  } else {
+    restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
+    restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
+  }
+
+  // Handle click on map to set delivery destination
+  requestDeliveryMap.on('click', (e) => {
+    const latlng = e.latlng;
+    updateRequestDeliveryDestination(latlng.lat, latlng.lng);
+  });
+
+  // Setup direct geocoding input listener (with a debounce)
+  setupAddressGeocodingListener();
+}
+
+function updateRequestDeliveryDestination(lat, lng, shouldCenter = false) {
+  if (!requestDeliveryMap) return;
+
+  const destIconHtml = `
+    <div class="custom-map-marker" style="background-color: #ff00aa; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #ff00aa;">
+    </div>
+  `;
+  const destIcon = L.divIcon({
+    html: destIconHtml,
+    className: 'custom-div-icon',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+
+  if (requestDeliveryMarker) {
+    requestDeliveryMarker.setLatLng([lat, lng]);
+  } else {
+    requestDeliveryMarker = L.marker([lat, lng], { icon: destIcon, draggable: true }).addTo(requestDeliveryMap);
+    
+    // Listen to marker drag event
+    requestDeliveryMarker.on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      updateRequestDeliveryDestination(pos.lat, pos.lng);
+    });
+  }
+
+  if (shouldCenter) {
+    requestDeliveryMap.setView([lat, lng], 15);
+  }
+
+  // Update polyline route
+  const startCoords = restaurantMarker ? restaurantMarker.getLatLng() : requestDeliveryCenterCoords;
+  if (requestDeliveryRouteLine) {
+    requestDeliveryRouteLine.setLatLngs([startCoords, [lat, lng]]);
+  } else {
+    requestDeliveryRouteLine = L.polyline([startCoords, [lat, lng]], {
+      color: '#ff00aa',
+      dashArray: '5, 10',
+      weight: 3
+    }).addTo(requestDeliveryMap);
+  }
+
+  // Perform reverse geocoding
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.display_name) {
+        let addressStr = data.display_name;
+        document.getElementById('delivery-address').value = addressStr;
+        calculateEstimate();
+      } else {
+        document.getElementById('delivery-address').value = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+        calculateEstimate();
+      }
+    })
+    .catch(err => {
+      console.error("Reverse geocoding error:", err);
+      document.getElementById('delivery-address').value = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+      calculateEstimate();
+    });
+}
+
+let geocodeDebounceTimeout = null;
+function setupAddressGeocodingListener() {
+  const addressInput = document.getElementById('delivery-address');
+  const suggestionsContainer = document.getElementById('address-suggestions');
+  if (!addressInput || !suggestionsContainer) return;
+
+  addressInput.addEventListener('input', () => {
+    const val = addressInput.value.trim();
+    if (val.length < 3) {
+      suggestionsContainer.innerHTML = '';
+      suggestionsContainer.classList.add('hidden');
+      return;
+    }
+
+    clearTimeout(geocodeDebounceTimeout);
+    geocodeDebounceTimeout = setTimeout(() => {
+      // Search query restricted to Rio Grande do Sul, Brazil
+      const queryUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + ', Rio Grande do Sul')}&countrycodes=br&viewbox=-57.64,-27.08,-49.69,-33.75&bounded=1&limit=5`;
+      
+      fetch(queryUrl)
+        .then(res => res.json())
+        .then(data => {
+          suggestionsContainer.innerHTML = '';
+          if (data && data.length > 0) {
+            data.forEach(item => {
+              const div = document.createElement('div');
+              div.className = 'autocomplete-item';
+              div.innerText = item.display_name;
+              
+              div.addEventListener('click', () => {
+                const lat = parseFloat(item.lat);
+                const lng = parseFloat(item.lon);
+                
+                addressInput.value = item.display_name;
+                suggestionsContainer.classList.add('hidden');
+                
+                // Update map marker and polyline
+                updateRequestDeliveryDestination(lat, lng, true);
+              });
+              suggestionsContainer.appendChild(div);
+            });
+            suggestionsContainer.classList.remove('hidden');
+          } else {
+            suggestionsContainer.classList.add('hidden');
+          }
+        })
+        .catch(err => {
+          console.error("Geocoding search error:", err);
+        });
+    }, 400); // 400ms debounce
+  });
+
+  // Hide suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (e.target !== addressInput && e.target !== suggestionsContainer && !suggestionsContainer.contains(e.target)) {
+      suggestionsContainer.classList.add('hidden');
+    }
+  });
+}
+// ─── REALTIME ORDER TRACKING ──────────────────────────────────────────────────
+
+async function startRealtimeTracking(order) {
+  const trackerStatus = document.getElementById('tracker-badge-status');
+  const orderId = order.id;
+
+  // Unsubscribe from any previous tracking channel
+  if (trackingRealtimeChannel) {
+    if (supabaseClient) supabaseClient.removeChannel(trackingRealtimeChannel);
+    trackingRealtimeChannel = null;
+  }
+
+  // Determine coordinates
+  const pickupLat = parseFloat(order.pickup_lat) || -23.55052;
+  const pickupLng = parseFloat(order.pickup_lng) || -46.633308;
+  const destLat = parseFloat(order.dest_lat) || -23.551;
+  const destLng = parseFloat(order.dest_lng) || -46.634;
+
+  // Initialize tracking Leaflet map
+  initTrackingMap(pickupLat, pickupLng, destLat, destLng);
+
+  // Set stepper initial active state
+  updateStepperState(order.status || 'Buscando Entregador');
+
+  if (supabaseClient) {
+    // Check current state in database
+    const { data: histData } = await supabaseClient
+      .from('client_history')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (histData) {
+      updateStepperState(histData.status);
+      trackerStatus.innerText = translateStatus(histData.status);
+      trackerStatus.className = getStatusClass(histData.status);
+      await loadRiderDetails(orderId, histData.rider);
+    } else {
+      trackerStatus.innerText = 'Buscando Entregador';
+      trackerStatus.className = 'status-badge status-warning';
+    }
+
+    // Subscribe to client_history & fleet status updates
+    trackingRealtimeChannel = supabaseClient.channel(`tracking-${orderId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'client_history',
+        filter: `id=eq.${orderId}`
+      }, async (payload) => {
+        const row = payload.new;
+        if (!row) return;
+
+        updateStepperState(row.status);
+        trackerStatus.innerText = translateStatus(row.status);
+        trackerStatus.className = getStatusClass(row.status);
+
+        if (row.status === 'A caminho da coleta' || row.status === 'Em rota de entrega') {
+          await loadRiderDetails(orderId, row.rider);
+        }
+
+        if (row.status === 'Entregue') {
+          const tabBtn = document.getElementById('nav-tracking-tab');
+          if (tabBtn) tabBtn.querySelector('.pulse-dot').classList.add('hidden');
+          if (trackingRealtimeChannel) {
+            supabaseClient.removeChannel(trackingRealtimeChannel);
+            trackingRealtimeChannel = null;
+          }
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'fleet'
+      }, (payload) => {
+        const rider = payload.new;
+        if (rider && rider.delivery === orderId) {
+          updateRiderMarker(parseFloat(rider.lat), parseFloat(rider.lng), rider.name);
+          updateCourierCardUI(rider);
+        }
+      })
+      .subscribe();
+  }
+}
+
+function initTrackingMap(pickupLat, pickupLng, destLat, destLng) {
+  const mapContainer = document.getElementById('tracking-map');
+  if (!mapContainer) return;
+
+  if (trackingMapInstance) {
+    trackingMapInstance.remove();
+    trackingMapInstance = null;
+  }
+
+  trackingMapInstance = L.map('tracking-map', { attributionControl: false }).setView([pickupLat, pickupLng], 14);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20
+  }).addTo(trackingMapInstance);
+
+  const pickupIconHtml = `
+    <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
+      <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
+      <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
+    </div>
+  `;
+  const pickupIcon = L.divIcon({
+    html: pickupIconHtml,
+    className: 'custom-div-icon',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+
+  const destIconHtml = `
+    <div class="custom-map-marker" style="background-color: #ff00aa; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #ff00aa;">
+    </div>
+  `;
+  const destIcon = L.divIcon({
+    html: destIconHtml,
+    className: 'custom-div-icon',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+
+  trackingPickupMarker = L.marker([pickupLat, pickupLng], { icon: pickupIcon }).addTo(trackingMapInstance);
+  trackingPickupMarker.bindPopup('<strong style="color:var(--color-text);">Origem (Comércio)</strong>');
+
+  trackingDestMarker = L.marker([destLat, destLng], { icon: destIcon }).addTo(trackingMapInstance);
+  trackingDestMarker.bindPopup('<strong style="color:var(--color-text);">Destino (Cliente)</strong>');
+
+  trackingRouteLine = L.polyline([[pickupLat, pickupLng], [destLat, destLng]], {
+    color: '#ff00aa',
+    dashArray: '5, 10',
+    weight: 3
+  }).addTo(trackingMapInstance);
+
+  const group = new L.featureGroup([trackingPickupMarker, trackingDestMarker]);
+  trackingMapInstance.fitBounds(group.getBounds().pad(0.15));
+
+  trackingRiderMarker = null;
+}
+
+function updateRiderMarker(lat, lng, riderName) {
+  if (!trackingMapInstance || isNaN(lat) || isNaN(lng)) return;
+
+  const riderIconHtml = `
+    <div style="width:24px;height:24px;background:#00aeef;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(0,174,239,0.7);display:flex;align-items:center;justify-content:center;">
+      <i data-lucide="bike" style="width:12px;height:12px;color:#fff;"></i>
+    </div>
+  `;
+  const riderIcon = L.divIcon({
+    html: riderIconHtml,
+    className: 'custom-div-icon',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+
+  if (trackingRiderMarker) {
+    trackingRiderMarker.setLatLng([lat, lng]);
+  } else {
+    trackingRiderMarker = L.marker([lat, lng], { icon: riderIcon }).addTo(trackingMapInstance);
+    trackingRiderMarker.bindPopup(`<strong style="color:var(--color-text);">${escapeHtml(riderName)}</strong><br>Localização em tempo real`);
+  }
+  lucide.createIcons();
+}
+
+function updateStepperState(status) {
+  document.querySelectorAll('.step-node').forEach(node => {
+    node.className = 'step-node';
+  });
+
+  const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  if (status === 'Buscando Entregador') {
+    document.getElementById('step-1').className = 'step-node active';
+    document.getElementById('step-1-time').innerText = 'Aguardando busca de motoboys...';
+  } else if (status === 'A caminho da coleta') {
+    document.getElementById('step-1').className = 'step-node completed';
+    document.getElementById('step-2').className = 'step-node active';
+    if (document.getElementById('step-2-time').innerText === '--:--') {
+      document.getElementById('step-2-time').innerText = nowTime;
+    }
+  } else if (status === 'Em rota de entrega') {
+    document.getElementById('step-1').className = 'step-node completed';
+    document.getElementById('step-2').className = 'step-node completed';
+    document.getElementById('step-3').className = 'step-node active';
+    if (document.getElementById('step-3-time').innerText === '--:--') {
+      document.getElementById('step-3-time').innerText = nowTime;
+    }
+  } else if (status === 'Entregue') {
+    document.getElementById('step-1').className = 'step-node completed';
+    document.getElementById('step-2').className = 'step-node completed';
+    document.getElementById('step-3').className = 'step-node completed';
+    document.getElementById('step-4').className = 'step-node completed';
+    if (document.getElementById('step-4-time').innerText === '--:--') {
+      document.getElementById('step-4-time').innerText = nowTime;
+    }
+  }
+}
+
+function translateStatus(status) {
+  if (status === 'A caminho da coleta') return 'Entregador Coletando';
+  if (status === 'Em rota de entrega') return 'Em Rota de Entrega';
+  if (status === 'Entregue') return 'Concluído';
+  return status;
+}
+
+function getStatusClass(status) {
+  if (status === 'Entregue') return 'status-badge status-success';
+  if (status === 'Buscando Entregador') return 'status-badge status-warning';
+  return 'status-badge status-progress';
+}
+
+async function loadRiderDetails(orderId, riderName) {
+  if (!supabaseClient) return;
+
+  const { data: rider } = await supabaseClient
+    .from('fleet')
+    .select('*')
+    .eq('name', riderName)
+    .maybeSingle();
+
+  if (rider) {
+    updateCourierCardUI(rider);
+    if (rider.lat && rider.lng) {
+      updateRiderMarker(parseFloat(rider.lat), parseFloat(rider.lng), rider.name);
+    }
+  }
+}
+
+function updateCourierCardUI(rider) {
+  const box = document.getElementById('tracker-courier-box');
+  if (!box) return;
+
+  box.classList.remove('hidden');
+  document.getElementById('tracker-courier-name').innerText = rider.name;
+  document.getElementById('tracker-courier-vehicle').innerText = `${rider.vehicle} - Placa: ${rider.plate}`;
+  
+  const img = document.getElementById('tracker-courier-img');
+  img.src = (rider.id === '#SPD-101') 
+    ? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=256&auto=format&fit=crop' 
+    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop';
+}
+
+async function trackActiveOrder(orderId) {
+  if (!supabaseClient) return;
+
+  const { data: histData } = await supabaseClient
+    .from('client_history')
+    .select('*')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (histData) {
+    startRealtimeTracking({
+      id: histData.id,
+      pickup_lat: histData.pickup_lat,
+      pickup_lng: histData.pickup_lng,
+      dest_lat: histData.dest_lat,
+      dest_lng: histData.dest_lng,
+      status: histData.status
+    });
+  } else {
+    const { data: pendingData } = await supabaseClient
+      .from('pending_deliveries')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (pendingData) {
+      startRealtimeTracking(pendingData);
+    }
+  }
+
+  const trackingTabBtn = document.getElementById('nav-tracking-tab');
+  if (trackingTabBtn) {
+    trackingTabBtn.disabled = false;
+    trackingTabBtn.querySelector('.pulse-dot').classList.remove('hidden');
+  }
+  switchDashboardTab('order-tracking');
+}

@@ -721,7 +721,7 @@
     .pwa-map-avatar-btn {
       position: absolute;
       top: 16px;
-      left: 16px;
+      left: 70px;
       width: 46px;
       height: 46px;
       border-radius: 50%;
@@ -952,6 +952,19 @@
     .pwa-drawer-balance-btn:active {
       background-color: var(--border) !important;
     }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+    }
   </style>
 </head>
 <body>
@@ -1015,6 +1028,19 @@
     <!-- Main content area -->
     <main class="pwa-main">
 
+      <!-- Novas Teles Tab (System Teles) -->
+      <div id="pwa-tab-system-teles" class="pwa-tab hidden">
+        <div class="pwa-tab-header-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+          <button class="pwa-back-btn" onclick="switchPWATab('map')" style="background: var(--bg-card); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800;">Teles no Sistema</h2>
+        </div>
+        <div id="pwa-system-teles-container">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
       <!-- Teles Tab -->
       <div id="pwa-tab-teles" class="pwa-tab hidden">
         <div class="pwa-tab-header-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
@@ -1052,12 +1078,15 @@
 
         <!-- Right Action Buttons -->
         <div class="pwa-map-right-actions">
-          <button class="pwa-map-action-btn" onclick="switchPWATab('teles')" title="Minhas Teles" aria-label="Minhas Teles">
+          <!-- Top Button: Novas Teles do Sistema -->
+          <button class="pwa-map-action-btn" id="map-system-teles-btn" onclick="switchPWATab('system-teles')" title="Teles no Sistema" aria-label="Teles no Sistema">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="badge hidden" id="map-system-teles-badge" style="background: #ff00aa; color: white;">0</span>
+          </button>
+          <!-- Bottom Button: Minhas Teles -->
+          <button class="pwa-map-action-btn" id="map-my-teles-btn" onclick="switchPWATab('teles')" title="Minhas Teles" aria-label="Minhas Teles">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             <span class="badge hidden" id="map-teles-badge">0</span>
-          </button>
-          <button class="pwa-map-action-btn hidden" id="map-quick-action-btn" onclick="triggerQuickAction()" title="Ação Rápida" aria-label="Ação Rápida" style="background: var(--primary); color: white;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </button>
         </div>
 
@@ -1229,6 +1258,51 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Modal: Nova Tele Disponível (PWA Dispatch Popup) -->
+  <div id="pwa-pending-tele-modal" class="modal-overlay hidden" style="z-index: 99999; backdrop-filter: blur(4px);">
+    <div class="pwa-pending-tele-card" style="background: var(--bg-card); border: 1px solid var(--primary); border-radius: var(--radius); padding: 24px; width: 90%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); position: relative; margin: auto; border-top: 4px solid var(--primary);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div>
+          <span style="background: var(--primary-glow); color: var(--primary); font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Nova Tele no Sistema!</span>
+          <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-top: 8px;" id="pending-tele-id">#SPD-000</h3>
+        </div>
+        <button onclick="closePendingTeleModal()" style="background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px;" title="Recusar/Fechar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); flex-shrink: 0; margin-top: 2px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          <div>
+            <span style="font-size: 0.72rem; color: var(--muted); display: block;">Comércio / Retirada</span>
+            <strong style="font-size: 0.88rem;" id="pending-tele-client">Burger do Chef</strong>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success); flex-shrink: 0; margin-top: 2px;"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <div>
+            <span style="font-size: 0.72rem; color: var(--muted); display: block;">Destino / Entrega</span>
+            <strong style="font-size: 0.85rem;" id="pending-tele-address">Av. das Américas, 450</strong>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <div>
+            <span style="font-size: 0.7rem; color: var(--muted); display: block;">Distância</span>
+            <strong style="font-size: 0.9rem;" id="pending-tele-dist">3.5 km</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.7rem; color: var(--muted); display: block;">Taxa Motoboy</span>
+            <strong style="font-size: 1.05rem; color: #10b981;" id="pending-tele-price">R$ 12,50</strong>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button class="pwa-btn" onclick="closePendingTeleModal()" style="flex: 1; background: var(--bg-input); border: 1px solid var(--border); color: var(--text);">Recusar</button>
+        <button class="pwa-btn pwa-btn-primary" id="pending-tele-accept-btn" onclick="acceptSelectedPendingTele()" style="flex: 1; background: var(--primary); color: #fff;">Aceitar</button>
+      </div>
+    </div>
   </div>
 
   <script src="motoboy.js"></script>
