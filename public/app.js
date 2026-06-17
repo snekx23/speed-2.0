@@ -36,6 +36,10 @@ function escapeHtml(value) {
 }
 
 // Global Chart and Map variables to allow proper reset/destroy
+let ownerFleetMap = null;
+let ownerOverviewChart = null;
+let ownerFinancialChart = null;
+let clientOverviewChart = null;
 let selectedRiderId = null;
 let selectedMapRiderId = null;
 let trackingMapInstance = null;
