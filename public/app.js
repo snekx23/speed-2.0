@@ -700,6 +700,11 @@ function renderRiderSettings() {
   const tbody = document.getElementById('rider-settings-table-body');
   if (!tbody) return;
 
+  const countBadge = document.getElementById('settings-rider-count-badge');
+  if (countBadge) {
+    countBadge.innerText = mockData.fleet.length;
+  }
+
   if (mockData.fleet.length === 0) {
     tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Nenhum motoboy cadastrado.</td></tr>`;
     return;
@@ -729,6 +734,15 @@ function renderRiderSettings() {
       </tr>
     `;
   }).join('');
+
+  // If accordion is expanded, update its height to fit-content
+  const accordion = document.getElementById('geofencing-accordion');
+  if (accordion && accordion.classList.contains('expanded')) {
+    const collapseWrapper = accordion.querySelector('.accordion-collapse-wrapper');
+    if (collapseWrapper) {
+      collapseWrapper.style.maxHeight = 'fit-content';
+    }
+  }
 }
 
 async function toggleRiderDistanceLimit(riderId, isBypassed) {
@@ -752,6 +766,32 @@ async function toggleRiderDistanceLimit(riderId, isBypassed) {
     alert("Erro ao salvar a configuração de distância no Supabase. Tente novamente.");
     // Re-render to revert toggle state visually
     renderRiderSettings();
+  }
+}
+
+// Toggle Geofencing accordion panel open/close
+function toggleGeofencingAccordion() {
+  const accordion = document.getElementById('geofencing-accordion');
+  if (!accordion) return;
+
+  const chevron = accordion.querySelector('.accordion-chevron');
+  const collapseWrapper = accordion.querySelector('.accordion-collapse-wrapper');
+
+  const isExpanded = accordion.classList.toggle('expanded');
+
+  if (isExpanded) {
+    chevron.style.transform = 'rotate(180deg)';
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    setTimeout(() => {
+      if (accordion.classList.contains('expanded')) {
+        collapseWrapper.style.maxHeight = 'fit-content';
+      }
+    }, 250);
+  } else {
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    collapseWrapper.offsetHeight; // force reflow
+    chevron.style.transform = 'rotate(0deg)';
+    collapseWrapper.style.maxHeight = '0';
   }
 }
 

@@ -1206,26 +1206,38 @@
                 <i data-lucide="settings" style="color: var(--primary); width: 24px; height: 24px;"></i>
               </div>
               <div class="card-body">
-                <div class="settings-section" style="margin-bottom: 24px;">
-                  <h4 style="font-weight: 600; color: var(--color-text); margin-bottom: 8px;">Controle de Restrições Geográficas (3km)</h4>
-                  <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 20px;">
-                    Por padrão, os motoboys devem estar num raio de até 3km do ponto de coleta ou do cliente para confirmar as ações. 
-                    Ative a opção abaixo para liberar a coleta/finalização de qualquer distância para entregadores específicos.
-                  </p>
+                <!-- Accordion/Drawer for Geofencing Limits -->
+                <div class="accordion-item" id="geofencing-accordion">
+                  <div class="accordion-header" onclick="toggleGeofencingAccordion()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); transition: background 0.2s ease;">
+                    <div style="flex: 1; padding-right: 16px;">
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <h4 style="font-weight: 600; color: var(--color-text); margin: 0; font-size: 1rem;">Controle de Restrições Geográficas (3km)</h4>
+                        <span class="badge badge-neutral" id="settings-rider-count-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); color: var(--color-text-muted);">0</span>
+                      </div>
+                      <p class="text-muted" style="font-size: 0.82rem; margin: 0; line-height: 1.4;">
+                        Por padrão, os motoboys devem estar num raio de até 3km do ponto de coleta ou do cliente para confirmar as ações. Ative a isenção para liberar ações sem restrição de distância.
+                      </p>
+                    </div>
+                    <i data-lucide="chevron-down" class="accordion-chevron" style="transition: transform 0.25s ease; color: var(--color-text-muted); width: 20px; height: 20px; flex-shrink: 0;"></i>
+                  </div>
                   
-                  <div class="table-responsive">
-                    <table class="table">
-                      <thead>
-                        <tr>
-                          <th>Motoboy</th>
-                          <th>Veículo / Placa</th>
-                          <th>Configuração</th>
-                        </tr>
-                      </thead>
-                      <tbody id="rider-settings-table-body">
-                        <!-- Loaded dynamically via JS -->
-                      </tbody>
-                    </table>
+                  <div class="accordion-collapse-wrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.25s ease-in-out;">
+                    <div class="accordion-content-inner" style="padding: 20px 16px 16px 16px; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm); background: rgba(0, 0, 0, 0.15);">
+                      <div class="table-responsive">
+                        <table class="table">
+                          <thead>
+                            <tr>
+                              <th>Motoboy</th>
+                              <th>Veículo / Placa</th>
+                              <th>Configuração</th>
+                            </tr>
+                          </thead>
+                          <tbody id="rider-settings-table-body">
+                            <!-- Loaded dynamically via JS -->
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
