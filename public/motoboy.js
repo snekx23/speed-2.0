@@ -7,6 +7,7 @@ let db = null;
 let currentRider = null;  // fleet row of logged-in motoboy
 let riderMap = null;      // Leaflet map instance
 let realtimeChannel = null;
+let supportRealtimeChannel = null;
 let watchId = null;       // geolocation watch ID
 let lastPosition = null;  // { lat, lng }
 let hasCenteredOnce = false;
@@ -1696,7 +1697,8 @@ function subscribeRiderSupportRealtime() {
     db.removeChannel(supportRealtimeChannel);
   }
 
-  supportRealtimeChannel = db.channel('realtime-rider-support-' + currentRider.id)
+  const cleanId = currentRider.id.replace('#', '');
+  supportRealtimeChannel = db.channel('realtime-rider-support-' + cleanId)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
