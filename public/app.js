@@ -53,6 +53,11 @@ let trackingRealtimeChannel = null;
 let activeChatClientEmail = null;
 let activeChatClientName = null;
 let supportChatChannel = null;
+
+// Global rider support chat variables
+let activeChatRiderId = null;
+let activeChatRiderName = null;
+let riderSupportChatChannel = null;
 let clientRatings = [
   { score: 5, title: 'Entrega rápida e cordial', comment: 'Motoboy chegou antes do prazo e manteve o pedido em perfeito estado.', date: 'Hoje, 14:20' },
   { score: 5, title: 'Coleta sem espera', comment: 'Fluxo funcionou bem no horário de pico.', date: 'Ontem, 21:10' },
@@ -348,6 +353,7 @@ async function loginSuccess() {
     
     // Subscribe to support realtime notifications immediately on login
     subscribeSupportRealtime();
+    subscribeRiderSupportRealtime();
     
     // Render Fleet table
     renderFleetTable();
@@ -395,8 +401,14 @@ function handleLogout() {
     supabaseClient.removeChannel(supportChatChannel);
     supportChatChannel = null;
   }
+  if (supabaseClient && riderSupportChatChannel) {
+    supabaseClient.removeChannel(riderSupportChatChannel);
+    riderSupportChatChannel = null;
+  }
   activeChatClientEmail = null;
   activeChatClientName = null;
+  activeChatRiderId = null;
+  activeChatRiderName = null;
 
   // Reset delivery request map
   if (requestDeliveryMap) {
@@ -481,6 +493,11 @@ async function switchDashboardTab(targetTab) {
     if (dot) dot.classList.add('hidden');
     await loadAdminChatChannels();
     subscribeSupportRealtime();
+  } else if (targetTab === 'owner-support-riders') {
+    const dot = document.getElementById('admin-rider-chat-dot');
+    if (dot) dot.classList.add('hidden');
+    await loadAdminRiderChatChannels();
+    subscribeRiderSupportRealtime();
   }
 }
 
@@ -2881,6 +2898,232 @@ function appendAndScrollAdmin(msg) {
   container.appendChild(div);
 
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+// ─── ADMIN RIDER CHAT LOGIC ──────────────────────────────────────────────────
+
+async function loadAdminRiderChatChannels() {
+  const listContainer = document.getElementById('admin-rider-chat-channels-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; padding: 20px;">
+      <div style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
+  `;
+
+  if (!supabaseClient) return;
+
+  try {
+    const { data: messages, error } = await supabaseClient
+      .from('rider_support_messages')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    const lastMsgMap = {};
+    (messages || []).forEach(msg => {
+      lastMsgMap[msg.rider_id] = {
+        message: msg.message,
+        time: new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+    });
+
+    const channels = mockData.fleet.map(rider => {
+      const last = lastMsgMap[rider.id];
+      return {
+        id: rider.id,
+        name: rider.name,
+        lastMessage: last ? last.message : 'Sem mensagens anteriores',
+        time: last ? last.time : ''
+      };
+    });
+
+    renderAdminRiderChatChannels(channels);
+  } catch (err) {
+    console.error("Error loading admin rider chat channels:", err);
+    listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 10px;">Erro ao carregar conversas.</p>`;
+  }
+}
+
+function renderAdminRiderChatChannels(channels) {
+  const listContainer = document.getElementById('admin-rider-chat-channels-list');
+  if (!listContainer) return;
+
+  if (channels.length === 0) {
+    listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 20px;">Nenhum motoboy na frota.</p>`;
+    return;
+  }
+
+  listContainer.innerHTML = channels.map(chan => {
+    const isActive = activeChatRiderId === chan.id;
+    const activeBg = isActive ? 'background: rgba(255, 255, 255, 0.08); border-left: 3px solid var(--accent-cyan);' : 'border-left: 3px solid transparent;';
+    const highlightHover = 'this.style.background=\'rgba(255, 255, 255, 0.05)\'';
+    const normalBg = isActive ? 'this.style.background=\'rgba(255, 255, 255, 0.08)\'' : 'this.style.background=\'transparent\'';
+
+    return `
+      <div class="chat-channel-item" onclick="selectAdminRiderChatChannel('${chan.id}', '${chan.name.replace(/'/g, "\\'")}')" 
+           onmouseover="${highlightHover}" onmouseout="${normalBg}"
+           style="padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; ${activeBg}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.88rem; color: var(--color-text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${chan.name}</strong>
+          <span style="font-size: 0.68rem; color: var(--color-text-muted);">${chan.time}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+          <p style="font-size: 0.78rem; color: var(--color-text-muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${chan.lastMessage}</p>
+          <span style="font-size: 0.65rem; color: var(--primary); font-weight: 700;">${chan.id}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function selectAdminRiderChatChannel(riderId, name) {
+  activeChatRiderId = riderId;
+  activeChatRiderName = name;
+
+  const adminDot = document.getElementById('admin-rider-chat-dot');
+  if (adminDot) adminDot.classList.add('hidden');
+
+  document.getElementById('admin-rider-chat-no-selection').classList.add('hidden');
+  document.getElementById('admin-rider-chat-window-pane').classList.remove('hidden');
+
+  document.getElementById('admin-rider-chat-title').innerText = name;
+  document.getElementById('admin-rider-chat-subtitle').innerText = riderId;
+
+  loadAdminRiderChatChannels();
+
+  const chatMessages = document.getElementById('admin-rider-chat-messages');
+  if (chatMessages) {
+    chatMessages.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+        <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    `;
+  }
+
+  if (!supabaseClient) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('rider_support_messages')
+      .select('*')
+      .eq('rider_id', riderId)
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    renderAdminRiderMessages(data || []);
+  } catch (err) {
+    console.error("Error fetching messages for admin rider chat:", err);
+    if (chatMessages) chatMessages.innerHTML = `<p class="text-muted" style="text-align: center; margin-top: 20px;">Erro ao carregar mensagens.</p>`;
+  }
+}
+
+function renderAdminRiderMessages(messages) {
+  const container = document.getElementById('admin-rider-chat-messages');
+  if (!container) return;
+
+  if (messages.length === 0) {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--color-text-muted); gap: 8px;">
+        <p style="font-size: 0.85rem; margin: 0;">Sem mensagens nesta conversa.</p>
+        <p style="font-size: 0.78rem; margin: 0; color: var(--color-text-muted);">Envie uma resposta abaixo para iniciar a conversa.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = messages.map(msg => createMessageBubble(msg, 'admin')).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendAdminRiderChatMessage(event) {
+  if (event) event.preventDefault();
+
+  const input = document.getElementById('admin-rider-chat-input');
+  if (!input) return;
+
+  const val = input.value.trim();
+  if (!val) return;
+
+  if (!supabaseClient || !activeChatRiderId) return;
+
+  const creds = mockData.credentials['owner'];
+  if (!creds) return;
+
+  input.value = '';
+
+  try {
+    const { error } = await supabaseClient
+      .from('rider_support_messages')
+      .insert([{
+        rider_id: activeChatRiderId,
+        sender_role: 'admin',
+        sender_name: creds.name,
+        message: val
+      }]);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Error sending admin rider message:", err);
+    showToastNotification("Erro ao enviar resposta.");
+  }
+}
+
+function appendAndScrollAdminRider(msg) {
+  const container = document.getElementById('admin-rider-chat-messages');
+  if (!container) return;
+
+  const emptyMsg = container.querySelector('p');
+  if (emptyMsg && emptyMsg.innerText.includes('Sem mensagens')) {
+    container.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  div.style.display = 'contents';
+  div.innerHTML = createMessageBubble(msg, 'admin');
+  container.appendChild(div);
+
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+function subscribeRiderSupportRealtime() {
+  if (!supabaseClient) return;
+
+  if (riderSupportChatChannel) {
+    supabaseClient.removeChannel(riderSupportChatChannel);
+  }
+
+  riderSupportChatChannel = supabaseClient.channel('realtime-rider-support-channel')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'rider_support_messages'
+    }, (payload) => {
+      const newMsg = payload.new;
+      const currentRole = mockData.activeProfile;
+
+      if (currentRole === 'owner') {
+        loadAdminRiderChatChannels();
+
+        if (newMsg.sender_role === 'rider') {
+          addBellNotification(`<strong>${escapeHtml(newMsg.sender_name)} (Motoboy)</strong>: ${escapeHtml(newMsg.message)}`, 'chat');
+
+          const isRiderSupportActive = document.getElementById('tab-owner-support-riders') && document.getElementById('tab-owner-support-riders').classList.contains('active');
+          if (!isRiderSupportActive || activeChatRiderId !== newMsg.rider_id) {
+            const adminRiderDot = document.getElementById('admin-rider-chat-dot');
+            if (adminRiderDot) adminRiderDot.classList.remove('hidden');
+          }
+        }
+
+        if (activeChatRiderId === newMsg.rider_id) {
+          appendAndScrollAdminRider(newMsg);
+        }
+      }
+    })
+    .subscribe();
 }
 
 // ─── REALTIME SUPPORT SUBSCRIPTION ───────────────────────────────────────────

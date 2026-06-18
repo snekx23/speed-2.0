@@ -139,6 +139,10 @@ function handleMotoLogout() {
   if (!confirm('Sair do aplicativo?')) return;
   localStorage.removeItem('speedMotoSession');
   if (realtimeChannel) db.removeChannel(realtimeChannel);
+  if (supportRealtimeChannel) {
+    db.removeChannel(supportRealtimeChannel);
+    supportRealtimeChannel = null;
+  }
   if (watchId) navigator.geolocation.clearWatch(watchId);
   currentRider = null;
   knownActiveTeleIds = null;
@@ -318,6 +322,9 @@ function switchPWATab(tab) {
     loadReportsData();
   } else if (tab === 'system-teles') {
     loadSystemTeles();
+  } else if (tab === 'support') {
+    loadRiderChatHistory();
+    subscribeRiderSupportRealtime();
   }
   lucide.createIcons();
 }
@@ -1553,4 +1560,152 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
             Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
+}
+
+// ─── RIDER SUPPORT CHAT LOGIC ────────────────────────────────────────────────
+
+async function loadRiderChatHistory() {
+  const container = document.getElementById('rider-chat-messages');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+      <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
+  `;
+
+  if (!db || !currentRider) return;
+
+  try {
+    const { data, error } = await db
+      .from('rider_support_messages')
+      .select('*')
+      .eq('rider_id', currentRider.id)
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    renderRiderMessages(data || []);
+  } catch (err) {
+    console.error("Error loading rider chat history:", err);
+    container.innerHTML = `<p class="text-muted" style="text-align: center; margin-top: 20px; font-size: 0.8rem;">Erro ao carregar mensagens. Tente novamente.</p>`;
+  }
+}
+
+function renderRiderMessages(messages) {
+  const container = document.getElementById('rider-chat-messages');
+  if (!container) return;
+
+  if (messages.length === 0) {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--muted); gap: 12px; padding: 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <p style="font-size: 0.85rem; margin: 0;">Nenhuma mensagem enviada ainda.</p>
+        <p style="font-size: 0.78rem; margin: 0; color: var(--muted);">Envie uma mensagem abaixo para falar com o suporte administrativo.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = messages.map(msg => createRiderMessageBubble(msg, 'rider')).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function createRiderMessageBubble(msg, currentRole) {
+  const isMe = msg.sender_role === currentRole;
+  const alignStyle = isMe ? 'align-self: flex-end; align-items: flex-end;' : 'align-self: flex-start; align-items: flex-start;';
+  
+  const bubbleStyle = isMe 
+    ? 'background: linear-gradient(135deg, var(--primary), #d90090); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(255, 0, 170, 0.25);'
+    : 'background: var(--border); border: 1px solid var(--border); color: var(--text); border-radius: 16px 16px 16px 2px;';
+  
+  const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora';
+
+  return `
+    <div style="display: flex; flex-direction: column; max-width: 80%; ${alignStyle}">
+      <span style="font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; font-weight: 500;">${msg.sender_name}</span>
+      <div style="padding: 10px 16px; font-size: 0.88rem; line-height: 1.45; word-break: break-word; ${bubbleStyle}">
+        ${escapeHtml(msg.message)}
+      </div>
+      <span style="font-size: 0.65rem; color: var(--muted); margin-top: 4px;">${time}</span>
+    </div>
+  `;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function sendRiderChatMessage(event) {
+  if (event) event.preventDefault();
+
+  const input = document.getElementById('rider-chat-input');
+  if (!input) return;
+
+  const val = input.value.trim();
+  if (!val) return;
+
+  if (!db || !currentRider) return;
+
+  input.value = '';
+
+  try {
+    const { error } = await db
+      .from('rider_support_messages')
+      .insert([{
+        rider_id: currentRider.id,
+        sender_role: 'rider',
+        sender_name: currentRider.name,
+        message: val
+      }]);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Error sending rider chat message:", err);
+    showPWAToast("Erro ao enviar mensagem.");
+  }
+}
+
+function appendAndScrollRider(msg) {
+  const container = document.getElementById('rider-chat-messages');
+  if (!container) return;
+
+  const emptyState = container.querySelector('svg');
+  if (emptyState) {
+    container.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  div.style.display = 'contents';
+  div.innerHTML = createRiderMessageBubble(msg, 'rider');
+  container.appendChild(div);
+  
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+function subscribeRiderSupportRealtime() {
+  if (!db || !currentRider) return;
+
+  if (supportRealtimeChannel) {
+    db.removeChannel(supportRealtimeChannel);
+  }
+
+  supportRealtimeChannel = db.channel('realtime-rider-support-' + currentRider.id)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'rider_support_messages'
+    }, (payload) => {
+      const newMsg = payload.new;
+      if (newMsg.rider_id === currentRider.id) {
+        appendAndScrollRider(newMsg);
+      }
+    })
+    .subscribe();
 }

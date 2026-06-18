@@ -172,8 +172,12 @@
               <i data-lucide="receipt"></i> Repasse Semanal
             </button>
             <button class="nav-item" data-tab="owner-support" style="position: relative;" onclick="switchDashboardTab('owner-support')">
-              <i data-lucide="message-square"></i> Suporte Chat
+              <i data-lucide="message-square"></i> Suporte Clientes
               <span class="pulse-dot hidden" id="admin-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+            </button>
+            <button class="nav-item" data-tab="owner-support-riders" style="position: relative;" onclick="switchDashboardTab('owner-support-riders')">
+              <i data-lucide="bike"></i> Suporte Motoboys
+              <span class="pulse-dot hidden" id="admin-rider-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
             </button>
             <button class="nav-item" data-tab="owner-settings" onclick="switchDashboardTab('owner-settings')">
               <i data-lucide="settings"></i> Configurações
@@ -1186,6 +1190,55 @@
                   <!-- Message Input -->
                   <form id="admin-chat-form" onsubmit="sendAdminChatMessage(event)" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; background: var(--secondary);">
                     <input type="text" id="admin-chat-input" placeholder="Digite uma resposta..." required style="flex: 1; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.9rem; outline: none;" autocomplete="off">
+                    <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; justify-content: center; min-width: 100px;">
+                      <span>Enviar</span> <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7b. Admin Rider Support Chat Tab -->
+          <div id="tab-owner-support-riders" class="dashboard-tab-content">
+            <div class="owner-chat-wrapper" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 200px); min-height: 480px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+              <!-- Conversations Sidebar (Left) -->
+              <div class="chat-sidebar-pane" style="border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--secondary); height: 100%;">
+                <div style="padding: 20px 16px; border-bottom: 1px solid var(--border-color);">
+                  <h3 style="font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); margin: 0; text-transform: uppercase; letter-spacing: 1px;">Suporte Motoboys</h3>
+                </div>
+                <div id="admin-rider-chat-channels-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0;">
+                  <!-- Dynamic channel list -->
+                </div>
+              </div>
+              
+              <!-- Active Conversation Pane (Right) -->
+              <div id="admin-rider-active-chat-container" style="display: flex; flex-direction: column; background: rgba(0,0,0,0.15); height: 100%; position: relative;">
+                <!-- No Selection state -->
+                <div id="admin-rider-chat-no-selection" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; text-align: center; color: var(--color-text-muted); height: 100%;">
+                  <i data-lucide="message-square" style="width: 48px; height: 48px; stroke-width: 1.5; color: var(--color-text-muted);"></i>
+                  <div>
+                    <h4 style="font-size: 1.1rem; font-weight: 600; color: var(--color-text); margin: 0;">Nenhum Motoboy Selecionado</h4>
+                    <p style="font-size: 0.85rem; margin: 6px 0 0 0;">Selecione um motoboy ao lado para ver o histórico e responder.</p>
+                  </div>
+                </div>
+                
+                <!-- Chat Window (Selected State) -->
+                <div id="admin-rider-chat-window-pane" class="hidden" style="flex: 1; display: flex; flex-direction: column; height: 100%;">
+                  <!-- Header -->
+                  <div class="chat-header-pane" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--secondary);">
+                    <div>
+                      <h3 id="admin-rider-chat-title" style="font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--color-text); margin: 0;">Motoboy</h3>
+                      <p id="admin-rider-chat-subtitle" style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0; margin-top: 2px;">#MB-000</p>
+                    </div>
+                  </div>
+                  <!-- Message list container -->
+                  <div id="admin-rider-chat-messages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+                    <!-- Message bubbles injected here -->
+                  </div>
+                  <!-- Message Input -->
+                  <form id="admin-rider-chat-form" onsubmit="sendAdminRiderChatMessage(event)" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; background: var(--secondary);">
+                    <input type="text" id="admin-rider-chat-input" placeholder="Digite uma resposta para o motoboy..." required style="flex: 1; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.9rem; outline: none;" autocomplete="off">
                     <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; justify-content: center; min-width: 100px;">
                       <span>Enviar</span> <i data-lucide="send" style="width: 16px; height: 16px;"></i>
                     </button>
