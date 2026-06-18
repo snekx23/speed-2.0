@@ -4,6 +4,7 @@
 const supabaseUrl = 'https://evupemncvectyyeoeajz.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dXBlbW5jdmVjdHl5ZW9lYWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjEyOTEsImV4cCI6MjA5NjMzNzI5MX0.QKW38pTwzkkTUKZqz5JUopOws9ftWJBYHMF4xICxips';
 let supabaseClient = null;
+let maxSimultaneousDeliveries = 1;
 if (window.supabase) {
   supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 } else {
@@ -79,6 +80,7 @@ async function fetchFleet() {
       statusClass: item.status_class,
       pin: item.pin || '—',
       bypassDistanceLimit: !!item.bypass_distance_limit,
+      maxSimultaneousDeliveries: parseInt(item.max_simultaneous_deliveries) || 1,
       lat: item.lat,
       lng: item.lng
     }));
@@ -459,6 +461,7 @@ async function switchDashboardTab(targetTab) {
   } else if (targetTab === 'owner-settings') {
     await fetchFleet();
     renderRiderSettings();
+    renderRiderLimits();
   } else if (targetTab === 'client-overview') {
     initClientOverviewChart();
   } else if (targetTab === 'client-history') {
@@ -821,6 +824,170 @@ function toggleGeofencingAccordion() {
     chevron.style.transform = 'rotate(0deg)';
     collapseWrapper.style.maxHeight = '0';
   }
+}
+
+// Toggle Simultaneous Deliveries limit accordion panel open/close
+function toggleSimultaneousDeliveriesAccordion() {
+  const accordion = document.getElementById('simultaneous-deliveries-accordion');
+  if (!accordion) return;
+
+  const chevron = accordion.querySelector('.accordion-chevron');
+  const collapseWrapper = accordion.querySelector('.accordion-collapse-wrapper');
+
+  const isExpanded = accordion.classList.toggle('expanded');
+
+  if (isExpanded) {
+    chevron.style.transform = 'rotate(180deg)';
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    setTimeout(() => {
+      if (accordion.classList.contains('expanded')) {
+        collapseWrapper.style.maxHeight = 'fit-content';
+      }
+    }, 250);
+  } else {
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    collapseWrapper.offsetHeight; // force reflow
+    chevron.style.transform = 'rotate(0deg)';
+    collapseWrapper.style.maxHeight = '0';
+  }
+}
+
+// Render simultaneous deliveries limits list for each motoboy
+function renderRiderLimits() {
+  const tbody = document.getElementById('rider-limits-table-body');
+  if (!tbody) return;
+
+  // Calculate and update stats counters
+  const totalRiders = mockData.fleet.length;
+  const defaultRiders = mockData.fleet.filter(r => (r.maxSimultaneousDeliveries || 1) === 1).length;
+  const customRiders = totalRiders - defaultRiders;
+
+  const totalEl = document.getElementById('stats-limit-total-riders');
+  const defaultEl = document.getElementById('stats-limit-default-riders');
+  const customEl = document.getElementById('stats-limit-custom-riders');
+
+  if (totalEl) totalEl.innerText = totalRiders;
+  if (defaultEl) defaultEl.innerText = defaultRiders;
+  if (customEl) customEl.innerText = customRiders;
+
+  // Filter riders if search query exists
+  const searchInput = document.getElementById('rider-limit-search-input');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  const filteredFleet = mockData.fleet.filter(rider => {
+    if (!query) return true;
+    const name = (rider.name || '').toLowerCase();
+    const id = (rider.id || '').toLowerCase();
+    const plate = (rider.plate || '').toLowerCase();
+    return name.includes(query) || id.includes(query) || plate.includes(query);
+  });
+
+  if (filteredFleet.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Nenhum motoboy encontrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filteredFleet.map(rider => {
+    const currentLimit = rider.maxSimultaneousDeliveries || 1;
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(rider.name)}</strong>
+          <p class="text-muted">${escapeHtml(rider.id)}</p>
+        </td>
+        <td>
+          <strong>${escapeHtml(rider.vehicle)}</strong>
+          <p class="text-muted">${escapeHtml(rider.plate)}</p>
+        </td>
+        <td>
+          <select onchange="updateRiderDeliveryLimit('${rider.id}', this.value)" style="width: 100%; padding: 8px 12px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.88rem; outline: none; transition: border-color 0.2s; cursor: pointer;">
+            <option value="1" ${currentLimit === 1 ? 'selected' : ''}>1 entrega</option>
+            <option value="2" ${currentLimit === 2 ? 'selected' : ''}>2 entregas</option>
+            <option value="3" ${currentLimit === 3 ? 'selected' : ''}>3 entregas</option>
+            <option value="4" ${currentLimit === 4 ? 'selected' : ''}>4 entregas</option>
+            <option value="5" ${currentLimit === 5 ? 'selected' : ''}>5 entregas</option>
+          </select>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // If accordion is expanded, update its height to fit-content
+  const accordion = document.getElementById('simultaneous-deliveries-accordion');
+  if (accordion && accordion.classList.contains('expanded')) {
+    const collapseWrapper = accordion.querySelector('.accordion-collapse-wrapper');
+    if (collapseWrapper) {
+      collapseWrapper.style.maxHeight = 'fit-content';
+    }
+  }
+}
+
+// Update a rider's simultaneous delivery limit in Supabase
+async function updateRiderDeliveryLimit(riderId, limitValue) {
+  const parsedLimit = parseInt(limitValue) || 1;
+
+  if (!supabaseClient) {
+    const rider = mockData.fleet.find(r => r.id === riderId);
+    if (rider) rider.maxSimultaneousDeliveries = parsedLimit;
+    renderRiderLimits();
+    showToastNotification('Limite de entregas simultâneas atualizado com sucesso.');
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from('fleet')
+      .update({ max_simultaneous_deliveries: parsedLimit })
+      .eq('id', riderId);
+
+    if (error) throw error;
+
+    const rider = mockData.fleet.find(r => r.id === riderId);
+    if (rider) rider.maxSimultaneousDeliveries = parsedLimit;
+    renderRiderLimits();
+    showToastNotification('Limite de entregas simultâneas atualizado com sucesso.');
+  } catch (err) {
+    console.error("Error updating rider delivery limit:", err);
+    alert("Erro ao atualizar o limite de entregas do motoboy no Supabase. Tente novamente.");
+    renderRiderLimits();
+  }
+}
+
+// Restore default simultaneous delivery limit (1) for ALL riders
+async function restoreDefaultAllRiderLimits() {
+  if (!confirm('Tem certeza de que deseja restaurar o limite padrão (1 entrega) para TODOS os motoboys?')) return;
+
+  if (!supabaseClient) {
+    mockData.fleet.forEach(rider => {
+      rider.maxSimultaneousDeliveries = 1;
+    });
+    renderRiderLimits();
+    showToastNotification('Todos os motoboys foram redefinidos para o limite padrão (1 entrega).');
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from('fleet')
+      .update({ max_simultaneous_deliveries: 1 });
+
+    if (error) throw error;
+
+    mockData.fleet.forEach(rider => {
+      rider.maxSimultaneousDeliveries = 1;
+    });
+    renderRiderLimits();
+    showToastNotification('Todos os motoboys foram redefinidos para o limite padrão (1 entrega).');
+  } catch (err) {
+    console.error("Error restoring all rider limits:", err);
+    alert("Erro ao redefinir os limites no Supabase. Tente novamente.");
+    renderRiderLimits();
+  }
+}
+
+// Search filter callback for rider limits
+function filterRiderLimits() {
+  renderRiderLimits();
 }
 
 // Render the client delivery history table

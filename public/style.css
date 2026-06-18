@@ -2578,10 +2578,12 @@ input:checked + .slider:before {
 }
 
 /* Accordion & Settings improvements */
-#geofencing-accordion .accordion-header {
+#geofencing-accordion .accordion-header,
+#simultaneous-deliveries-accordion .accordion-header {
   border-radius: var(--border-radius-sm);
 }
-#geofencing-accordion .accordion-header:hover {
+#geofencing-accordion .accordion-header:hover,
+#simultaneous-deliveries-accordion .accordion-header:hover {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 .accordion-header-summary span {

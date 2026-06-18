@@ -746,6 +746,36 @@ async function acceptSelectedPendingTele() {
     return;
   }
 
+  // Verificar limite de entregas simultâneas
+  try {
+    const { data: activeDeliveries, error: countErr } = await db
+      .from('client_history')
+      .select('id')
+      .eq('rider', currentRider.name)
+      .neq('status', 'Entregue');
+
+    if (countErr) throw countErr;
+
+    const count = activeDeliveries ? activeDeliveries.length : 0;
+
+    const { data: fleetData, error: limitErr } = await db
+      .from('fleet')
+      .select('max_simultaneous_deliveries')
+      .eq('id', currentRider.id)
+      .maybeSingle();
+
+    if (limitErr) throw limitErr;
+
+    const limit = fleetData ? (parseInt(fleetData.max_simultaneous_deliveries) || 1) : 1;
+
+    if (count >= limit) {
+      alert(`Você atingiu o limite de entregas simultâneas (${limit}). Conclua suas entregas ativas antes de aceitar uma nova.`);
+      return;
+    }
+  } catch (err) {
+    console.error("Erro ao verificar limite de entregas simultâneas:", err);
+  }
+
   const btn = document.getElementById('pending-tele-accept-btn');
   const oldText = btn ? btn.innerText : 'Aceitar';
   if (btn) {
