@@ -659,24 +659,34 @@ function renderRiderPayments() {
     });
 
   const rows = Array.from(totals.values()).sort((a, b) => b.total - a.total);
-  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const grandTotalGross = rows.reduce((sum, row) => sum + row.total, 0);
+  const grandTotalNet = grandTotalGross * 0.90; // Apply 10% discount
   const totalEl = document.getElementById('rider-week-total');
   const rangeEl = document.getElementById('rider-week-range');
-  if (totalEl) totalEl.innerText = formatMoneyBR(grandTotal);
+  if (totalEl) totalEl.innerText = formatMoneyBR(grandTotalNet);
   if (rangeEl) rangeEl.innerText = getCurrentWeekRangeLabel();
 
-  tbody.innerHTML = rows.map(row => `
-    <tr>
-      <td>
-        <strong>${escapeHtml(row.rider.name)}</strong>
-        <p class="text-muted">${escapeHtml(row.rider.id) || '—'}</p>
-      </td>
-      <td>${row.count}</td>
-      <td><strong class="text-yellow">${formatMoneyBR(row.total)}</strong></td>
-      <td>${formatMoneyBR(row.count ? row.total / row.count : 0)}</td>
-      <td><span class="status-indicator ${row.total > 0 ? 'status-progress' : 'status-neutral'}">${row.total > 0 ? 'Programado para quinta' : 'Sem valor'}</span></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = rows.map(row => {
+    const gross = row.total;
+    const discount = gross * 0.10;
+    const net = gross * 0.90;
+    const avg = row.count ? gross / row.count : 0;
+    
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(row.rider.name)}</strong>
+          <p class="text-muted">${escapeHtml(row.rider.id) || '—'}</p>
+        </td>
+        <td>${row.count}</td>
+        <td>${formatMoneyBR(gross)}</td>
+        <td class="text-danger">- ${formatMoneyBR(discount)}</td>
+        <td><strong class="text-yellow">${formatMoneyBR(net)}</strong></td>
+        <td>${formatMoneyBR(avg)}</td>
+        <td><span class="status-indicator ${net > 0 ? 'status-progress' : 'status-neutral'}">${net > 0 ? 'Programado para quinta' : 'Sem valor'}</span></td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // Render the client delivery history table
