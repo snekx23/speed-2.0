@@ -1316,6 +1316,12 @@ async function loadReportsData() {
 function setReportsPeriod(period) {
   currentPeriod = period;
   
+  // Clear custom date inputs when clicking a standard period
+  const startInput = document.getElementById('pwa-report-start-date');
+  const endInput = document.getElementById('pwa-report-end-date');
+  if (startInput) startInput.value = '';
+  if (endInput) endInput.value = '';
+  
   // Update filter pills active class
   document.querySelectorAll('.pwa-reports-filters .pwa-filter-pill').forEach(btn => {
     btn.classList.remove('active');
@@ -1326,6 +1332,36 @@ function setReportsPeriod(period) {
   renderReports(period);
 }
 
+function onPwaReportDateChange() {
+  const startInput = document.getElementById('pwa-report-start-date');
+  const endInput = document.getElementById('pwa-report-end-date');
+  
+  if ((startInput && startInput.value) || (endInput && endInput.value)) {
+    // Clear active class from standard period pills when custom dates are filled
+    document.querySelectorAll('.pwa-reports-filters .pwa-filter-pill').forEach(btn => {
+      btn.classList.remove('active');
+    });
+  }
+  
+  renderReports('custom');
+}
+
+function resetPwaReportDateFilter() {
+  const startInput = document.getElementById('pwa-report-start-date');
+  const endInput = document.getElementById('pwa-report-end-date');
+  if (startInput) startInput.value = '';
+  if (endInput) endInput.value = '';
+  
+  if (!currentPeriod || currentPeriod === 'custom') {
+    currentPeriod = 'week';
+  }
+  
+  setReportsPeriod(currentPeriod);
+}
+
+window.onPwaReportDateChange = onPwaReportDateChange;
+window.resetPwaReportDateFilter = resetPwaReportDateFilter;
+
 function renderReports(period) {
   const listContainer = document.getElementById('pwa-reports-list-container');
   const totalEarnedEl = document.getElementById('reports-total-earned');
@@ -1333,9 +1369,30 @@ function renderReports(period) {
 
   if (!listContainer) return;
 
+  const startInput = document.getElementById('pwa-report-start-date');
+  const endInput = document.getElementById('pwa-report-end-date');
+  const startVal = startInput ? startInput.value : '';
+  const endVal = endInput ? endInput.value : '';
+
   // Filter deliveries based on date period
   const filtered = riderHistory.filter(order => {
     const orderDate = parseOrderDate(order.date);
+    
+    // If custom date range is selected
+    if (startVal || endVal) {
+      if (startVal) {
+        const parts = startVal.split('-');
+        const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+        if (orderDate < startDate) return false;
+      }
+      if (endVal) {
+        const parts = endVal.split('-');
+        const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+        if (orderDate > endDate) return false;
+      }
+      return true;
+    }
+    
     if (period === 'day') return isDateToday(orderDate);
     if (period === 'week') return isDateInCurrentWeek(orderDate);
     if (period === 'month') return isDateInCurrentMonth(orderDate);
