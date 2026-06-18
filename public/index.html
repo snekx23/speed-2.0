@@ -1210,26 +1210,37 @@
                 <div class="accordion-item" id="geofencing-accordion">
                   <div class="accordion-header" onclick="toggleGeofencingAccordion()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); transition: background 0.2s ease;">
                     <div style="flex: 1; padding-right: 16px;">
-                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <h4 style="font-weight: 600; color: var(--color-text); margin: 0; font-size: 1rem;">Controle de Restrições Geográficas (3km)</h4>
-                        <span class="badge badge-neutral" id="settings-rider-count-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); color: var(--color-text-muted);">0</span>
-                      </div>
+                      <h4 style="font-weight: 600; color: var(--color-text); margin: 0 0 4px 0; font-size: 1rem;">Controle de Restrições Geográficas (3km)</h4>
                       <p class="text-muted" style="font-size: 0.82rem; margin: 0; line-height: 1.4;">
                         Por padrão, os motoboys devem estar num raio de até 3km do ponto de coleta ou do cliente para confirmar as ações. Ative a isenção para liberar ações sem restrição de distância.
                       </p>
+                      <div class="accordion-header-summary" style="display: flex; gap: 16px; margin-top: 12px; font-size: 0.78rem; color: var(--color-text-muted); flex-wrap: wrap;">
+                        <span>Motoboys cadastrados: <strong id="stats-total-riders" style="color: var(--color-text);">0</strong></span>
+                        <span style="color: rgba(255,255,255,0.08);">|</span>
+                        <span>Seguindo a regra de 3 km: <strong id="stats-rule-riders" style="color: #00aeef;">0</strong></span>
+                        <span style="color: rgba(255,255,255,0.08);">|</span>
+                        <span>Exceções liberadas: <strong id="stats-bypass-riders" style="color: #ff00aa;">0</strong></span>
+                      </div>
                     </div>
                     <i data-lucide="chevron-down" class="accordion-chevron" style="transition: transform 0.25s ease; color: var(--color-text-muted); width: 20px; height: 20px; flex-shrink: 0;"></i>
                   </div>
                   
                   <div class="accordion-collapse-wrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.25s ease-in-out;">
                     <div class="accordion-content-inner" style="padding: 20px 16px 16px 16px; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm); background: rgba(0, 0, 0, 0.15);">
-                      <div class="table-responsive">
-                        <table class="table">
+                      <!-- Live Search Input -->
+                      <div class="search-wrapper" style="margin-bottom: 16px; position: relative;">
+                        <input type="text" id="rider-search-input" oninput="filterRiderSettings()" placeholder="Pesquisar motoboy..." style="width: 100%; padding: 10px 16px 10px 36px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.88rem; outline: none; transition: border-color 0.2s;" autocomplete="off">
+                        <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--color-text-muted); pointer-events: none;"></i>
+                      </div>
+
+                      <!-- Table container with internal scroll -->
+                      <div class="table-scroll-container" style="max-height: 350px; overflow-y: auto; position: relative; border-radius: var(--border-radius-sm); border: 1px solid rgba(255, 255, 255, 0.03);">
+                        <table class="table" style="width: 100%; border-collapse: collapse;">
                           <thead>
                             <tr>
-                              <th>Motoboy</th>
-                              <th>Veículo / Placa</th>
-                              <th>Configuração</th>
+                              <th style="position: sticky; top: 0; background: var(--secondary); z-index: 10; border-bottom: 1px solid var(--border-color); text-align: left; padding: 12px 16px;">Motoboy</th>
+                              <th style="position: sticky; top: 0; background: var(--secondary); z-index: 10; border-bottom: 1px solid var(--border-color); text-align: left; padding: 12px 16px;">Veículo / Placa</th>
+                              <th style="position: sticky; top: 0; background: var(--secondary); z-index: 10; border-bottom: 1px solid var(--border-color); text-align: left; padding: 12px 16px;">Exceção de distância</th>
                             </tr>
                           </thead>
                           <tbody id="rider-settings-table-body">

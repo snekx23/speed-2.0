@@ -2576,3 +2576,44 @@ input:checked + .slider:before {
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+/* Accordion & Settings improvements */
+#geofencing-accordion .accordion-header {
+  border-radius: var(--border-radius-sm);
+}
+#geofencing-accordion .accordion-header:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.accordion-header-summary span {
+  display: inline-flex;
+  align-items: center;
+}
+.accordion-header-summary strong {
+  margin-left: 4px;
+}
+#rider-search-input:focus {
+  border-color: var(--primary) !important;
+}
+.table-scroll-container table tbody tr {
+  transition: background 0.2s ease;
+}
+.table-scroll-container table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+.table-scroll-container table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.01);
+}
+/* Custom Scrollbar for premium dark theme */
+.table-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}

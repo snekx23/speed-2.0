@@ -700,17 +700,37 @@ function renderRiderSettings() {
   const tbody = document.getElementById('rider-settings-table-body');
   if (!tbody) return;
 
-  const countBadge = document.getElementById('settings-rider-count-badge');
-  if (countBadge) {
-    countBadge.innerText = mockData.fleet.length;
-  }
+  // Calculate and update stats counters
+  const totalRiders = mockData.fleet.length;
+  const bypassRiders = mockData.fleet.filter(r => r.bypassDistanceLimit).length;
+  const ruleRiders = totalRiders - bypassRiders;
 
-  if (mockData.fleet.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Nenhum motoboy cadastrado.</td></tr>`;
+  const totalEl = document.getElementById('stats-total-riders');
+  const ruleEl = document.getElementById('stats-rule-riders');
+  const bypassEl = document.getElementById('stats-bypass-riders');
+
+  if (totalEl) totalEl.innerText = totalRiders;
+  if (ruleEl) ruleEl.innerText = ruleRiders;
+  if (bypassEl) bypassEl.innerText = bypassRiders;
+
+  // Filter riders if search query exists
+  const searchInput = document.getElementById('rider-search-input');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  const filteredFleet = mockData.fleet.filter(rider => {
+    if (!query) return true;
+    const name = (rider.name || '').toLowerCase();
+    const id = (rider.id || '').toLowerCase();
+    const plate = (rider.plate || '').toLowerCase();
+    return name.includes(query) || id.includes(query) || plate.includes(query);
+  });
+
+  if (filteredFleet.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Nenhum motoboy encontrado.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = mockData.fleet.map(rider => {
+  tbody.innerHTML = filteredFleet.map(rider => {
     const isChecked = rider.bypassDistanceLimit ? 'checked' : '';
     return `
       <tr>
@@ -761,12 +781,20 @@ async function toggleRiderDistanceLimit(riderId, isBypassed) {
     if (localRider) {
       localRider.bypassDistanceLimit = isBypassed;
     }
+    
+    // Update stats and UI immediately
+    renderRiderSettings();
   } catch (err) {
     console.error("Error toggling distance limit bypass:", err);
     alert("Erro ao salvar a configuração de distância no Supabase. Tente novamente.");
     // Re-render to revert toggle state visually
     renderRiderSettings();
   }
+}
+
+// Live search filter callback
+function filterRiderSettings() {
+  renderRiderSettings();
 }
 
 // Toggle Geofencing accordion panel open/close
