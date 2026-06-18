@@ -53,11 +53,13 @@ let trackingRealtimeChannel = null;
 let activeChatClientEmail = null;
 let activeChatClientName = null;
 let supportChatChannel = null;
+let allAdminChatChannels = [];
 
 // Global rider support chat variables
 let activeChatRiderId = null;
 let activeChatRiderName = null;
 let riderSupportChatChannel = null;
+let allAdminRiderChatChannels = [];
 let clientRatings = [
   { score: 5, title: 'Entrega rápida e cordial', comment: 'Motoboy chegou antes do prazo e manteve o pedido em perfeito estado.', date: 'Hoje, 14:20' },
   { score: 5, title: 'Coleta sem espera', comment: 'Fluxo funcionou bem no horário de pico.', date: 'Ontem, 21:10' },
@@ -2748,12 +2750,23 @@ async function loadAdminChatChannels() {
       }
     });
 
-    const channels = Object.values(clientsMap);
-    renderAdminChatChannels(channels);
+    allAdminChatChannels = Object.values(clientsMap);
+    filterAdminChatChannels();
   } catch (err) {
     console.error("Error loading admin chat channels:", err);
     listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 10px;">Erro ao carregar conversas.</p>`;
   }
+}
+
+function filterAdminChatChannels() {
+  const queryInput = document.getElementById('admin-chat-search');
+  const query = queryInput ? queryInput.value.trim().toLowerCase() : '';
+  
+  const filtered = allAdminChatChannels.filter(chan => {
+    return (chan.name || '').toLowerCase().includes(query) || (chan.email || '').toLowerCase().includes(query);
+  });
+  
+  renderAdminChatChannels(filtered);
 }
 
 function renderAdminChatChannels(channels) {
@@ -2940,11 +2953,23 @@ async function loadAdminRiderChatChannels() {
       };
     });
 
-    renderAdminRiderChatChannels(channels);
+    allAdminRiderChatChannels = channels;
+    filterAdminRiderChatChannels();
   } catch (err) {
     console.error("Error loading admin rider chat channels:", err);
     listContainer.innerHTML = `<p class="text-muted" style="text-align: center; font-size: 0.8rem; padding: 10px;">Erro ao carregar conversas.</p>`;
   }
+}
+
+function filterAdminRiderChatChannels() {
+  const queryInput = document.getElementById('admin-rider-chat-search');
+  const query = queryInput ? queryInput.value.trim().toLowerCase() : '';
+  
+  const filtered = allAdminRiderChatChannels.filter(chan => {
+    return (chan.name || '').toLowerCase().includes(query) || (chan.id || '').toLowerCase().includes(query);
+  });
+  
+  renderAdminRiderChatChannels(filtered);
 }
 
 function renderAdminRiderChatChannels(channels) {

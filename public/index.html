@@ -1155,8 +1155,12 @@
             <div class="owner-chat-wrapper" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 200px); min-height: 480px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
               <!-- Conversations Sidebar (Left) -->
               <div class="chat-sidebar-pane" style="border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--secondary); height: 100%;">
-                <div style="padding: 20px 16px; border-bottom: 1px solid var(--border-color);">
+                <div style="padding: 20px 16px 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px;">
                   <h3 style="font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); margin: 0; text-transform: uppercase; letter-spacing: 1px;">Conversas de Suporte</h3>
+                  <div class="search-wrapper" style="position: relative;">
+                    <input type="text" id="admin-chat-search" oninput="filterAdminChatChannels()" placeholder="Buscar cliente..." style="width: 100%; padding: 8px 12px 8px 30px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.8rem; outline: none; transition: border-color 0.2s;" autocomplete="off">
+                    <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--color-text-muted); pointer-events: none;"></i>
+                  </div>
                 </div>
                 <div id="admin-chat-channels-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0;">
                   <!-- Dynamic channel list -->
@@ -1204,8 +1208,12 @@
             <div class="owner-chat-wrapper" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 200px); min-height: 480px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
               <!-- Conversations Sidebar (Left) -->
               <div class="chat-sidebar-pane" style="border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--secondary); height: 100%;">
-                <div style="padding: 20px 16px; border-bottom: 1px solid var(--border-color);">
+                <div style="padding: 20px 16px 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px;">
                   <h3 style="font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); margin: 0; text-transform: uppercase; letter-spacing: 1px;">Suporte Motoboys</h3>
+                  <div class="search-wrapper" style="position: relative;">
+                    <input type="text" id="admin-rider-chat-search" oninput="filterAdminRiderChatChannels()" placeholder="Buscar motoboy..." style="width: 100%; padding: 8px 12px 8px 30px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.8rem; outline: none; transition: border-color 0.2s;" autocomplete="off">
+                    <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--color-text-muted); pointer-events: none;"></i>
+                  </div>
                 </div>
                 <div id="admin-rider-chat-channels-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0;">
                   <!-- Dynamic channel list -->
