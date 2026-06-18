@@ -77,7 +77,10 @@ async function fetchFleet() {
       battery: item.battery,
       rating: parseFloat(item.rating),
       statusClass: item.status_class,
-      pin: item.pin || '—'
+      pin: item.pin || '—',
+      bypassDistanceLimit: !!item.bypass_distance_limit,
+      lat: item.lat,
+      lng: item.lng
     }));
   } catch (err) {
     console.error("Error fetching fleet from Supabase:", err);
@@ -453,6 +456,9 @@ async function switchDashboardTab(targetTab) {
     await fetchFleet();
     await fetchClientHistory();
     renderRiderPayments();
+  } else if (targetTab === 'owner-settings') {
+    await fetchFleet();
+    renderRiderSettings();
   } else if (targetTab === 'client-overview') {
     initClientOverviewChart();
   } else if (targetTab === 'client-history') {
@@ -687,6 +693,66 @@ function renderRiderPayments() {
       </tr>
     `;
   }).join('');
+}
+
+// Render the rider configurations list in the settings tab
+function renderRiderSettings() {
+  const tbody = document.getElementById('rider-settings-table-body');
+  if (!tbody) return;
+
+  if (mockData.fleet.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Nenhum motoboy cadastrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = mockData.fleet.map(rider => {
+    const isChecked = rider.bypassDistanceLimit ? 'checked' : '';
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(rider.name)}</strong>
+          <p class="text-muted">${escapeHtml(rider.id)}</p>
+        </td>
+        <td>
+          <strong>${escapeHtml(rider.vehicle)}</strong>
+          <p class="text-muted">${escapeHtml(rider.plate)}</p>
+        </td>
+        <td>
+          <div class="switch-container">
+            <label class="switch">
+              <input type="checkbox" ${isChecked} onchange="toggleRiderDistanceLimit('${rider.id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label-text">Liberar sem limites de distância</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function toggleRiderDistanceLimit(riderId, isBypassed) {
+  if (!supabaseClient) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('fleet')
+      .update({ bypass_distance_limit: isBypassed })
+      .eq('id', riderId);
+
+    if (error) throw error;
+
+    // Update local state
+    const localRider = mockData.fleet.find(r => r.id === riderId);
+    if (localRider) {
+      localRider.bypassDistanceLimit = isBypassed;
+    }
+  } catch (err) {
+    console.error("Error toggling distance limit bypass:", err);
+    alert("Erro ao salvar a configuração de distância no Supabase. Tente novamente.");
+    // Re-render to revert toggle state visually
+    renderRiderSettings();
+  }
 }
 
 // Render the client delivery history table

@@ -175,6 +175,9 @@
               <i data-lucide="message-square"></i> Suporte Chat
               <span class="pulse-dot hidden" id="admin-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
             </button>
+            <button class="nav-item" data-tab="owner-settings" onclick="switchDashboardTab('owner-settings')">
+              <i data-lucide="settings"></i> Configurações
+            </button>
           </div>
 
           <div class="nav-group" id="nav-client-group">
@@ -1187,6 +1190,43 @@
                       <span>Enviar</span> <i data-lucide="send" style="width: 16px; height: 16px;"></i>
                     </button>
                   </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 9. Admin Settings Tab -->
+          <div id="tab-owner-settings" class="dashboard-tab-content">
+            <div class="card">
+              <div class="card-header flex-row">
+                <div>
+                  <h3 class="gradient-text font-display" style="font-size: 1.4rem; font-weight: 700;">Configurações Gerais</h3>
+                  <p class="text-muted">Ajuste as regras de segurança e isenções da frota.</p>
+                </div>
+                <i data-lucide="settings" style="color: var(--primary); width: 24px; height: 24px;"></i>
+              </div>
+              <div class="card-body">
+                <div class="settings-section" style="margin-bottom: 24px;">
+                  <h4 style="font-weight: 600; color: var(--color-text); margin-bottom: 8px;">Controle de Restrições Geográficas (3km)</h4>
+                  <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 20px;">
+                    Por padrão, os motoboys devem estar num raio de até 3km do ponto de coleta ou do cliente para confirmar as ações. 
+                    Ative a opção abaixo para liberar a coleta/finalização de qualquer distância para entregadores específicos.
+                  </p>
+                  
+                  <div class="table-responsive">
+                    <table class="table">
+                      <thead>
+                        <tr>
+                          <th>Motoboy</th>
+                          <th>Veículo / Placa</th>
+                          <th>Configuração</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rider-settings-table-body">
+                        <!-- Loaded dynamically via JS -->
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

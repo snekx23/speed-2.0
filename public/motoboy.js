@@ -452,6 +452,56 @@ async function confirmPickup(deliveryId) {
   const btn = event.target.closest('button');
   if (btn) { btn.disabled = true; btn.innerText = 'Confirmando...'; }
 
+  try {
+    const { data: fleetRider, error: fleetErr } = await db
+      .from('fleet')
+      .select('bypass_distance_limit')
+      .eq('name', currentRider.name)
+      .single();
+
+    if (fleetErr) throw fleetErr;
+
+    const bypass = fleetRider ? !!fleetRider.bypass_distance_limit : false;
+
+    if (!bypass) {
+      const { data: order, error: orderErr } = await db
+        .from('client_history')
+        .select('pickup_lat, pickup_lng')
+        .eq('id', deliveryId)
+        .single();
+
+      if (orderErr) throw orderErr;
+
+      if (!order || order.pickup_lat === null || order.pickup_lng === null) {
+        alert('Coordenadas de coleta não encontradas para validação.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Coleta'; }
+        return;
+      }
+
+      if (!lastPosition || lastPosition.lat === null || lastPosition.lng === null) {
+        alert('Aguardando sua localização GPS atual. Certifique-se de que a localização está ativa.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Coleta'; }
+        return;
+      }
+
+      const distance = calculateHaversineDistance(
+        lastPosition.lat, lastPosition.lng,
+        parseFloat(order.pickup_lat), parseFloat(order.pickup_lng)
+      );
+
+      if (distance > 3.0) {
+        alert(`Você está a ${distance.toFixed(2)} km do local de coleta. A coleta só pode ser confirmada se você estiver a menos de 3 km do local.`);
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Coleta'; }
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("Erro na validação de distância:", err);
+    alert('Erro ao validar distância de segurança. Tente novamente.');
+    if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Coleta'; }
+    return;
+  }
+
   const { error } = await db
     .from('client_history')
     .update({ status: 'Em rota de entrega', status_class: 'status-progress' })
@@ -480,6 +530,56 @@ async function confirmDelivery(deliveryId) {
   if (!db) return;
   const btn = event.target.closest('button');
   if (btn) { btn.disabled = true; btn.innerText = 'Finalizando...'; }
+
+  try {
+    const { data: fleetRider, error: fleetErr } = await db
+      .from('fleet')
+      .select('bypass_distance_limit')
+      .eq('name', currentRider.name)
+      .single();
+
+    if (fleetErr) throw fleetErr;
+
+    const bypass = fleetRider ? !!fleetRider.bypass_distance_limit : false;
+
+    if (!bypass) {
+      const { data: order, error: orderErr } = await db
+        .from('client_history')
+        .select('dest_lat, dest_lng')
+        .eq('id', deliveryId)
+        .single();
+
+      if (orderErr) throw orderErr;
+
+      if (!order || order.dest_lat === null || order.dest_lng === null) {
+        alert('Coordenadas de entrega não encontradas para validação.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Entrega'; }
+        return;
+      }
+
+      if (!lastPosition || lastPosition.lat === null || lastPosition.lng === null) {
+        alert('Aguardando sua localização GPS atual. Certifique-se de que a localização está ativa.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Entrega'; }
+        return;
+      }
+
+      const distance = calculateHaversineDistance(
+        lastPosition.lat, lastPosition.lng,
+        parseFloat(order.dest_lat), parseFloat(order.dest_lng)
+      );
+
+      if (distance > 3.0) {
+        alert(`Você está a ${distance.toFixed(2)} km do local de entrega. A entrega só pode ser finalizada se você estiver a menos de 3 km do local.`);
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Entrega'; }
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("Erro na validação de distância:", err);
+    alert('Erro ao validar distância de segurança. Tente novamente.');
+    if (btn) { btn.disabled = false; btn.innerText = 'Confirmar Entrega'; }
+    return;
+  }
 
   const { error: histErr } = await db
     .from('client_history')
