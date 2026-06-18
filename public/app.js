@@ -668,6 +668,49 @@ function isOrderInCurrentWeek(order) {
   return orderDate >= monday && orderDate <= sunday;
 }
 
+function isOrderInFilterPeriod(order) {
+  const startInput = document.getElementById('rider-payment-start-date');
+  const endInput = document.getElementById('rider-payment-end-date');
+  
+  const startVal = startInput ? startInput.value : '';
+  const endVal = endInput ? endInput.value : '';
+  
+  if (!startVal && !endVal) {
+    return isOrderInCurrentWeek(order);
+  }
+  
+  const orderDate = parseOrderDate(order.date);
+  
+  if (startVal) {
+    const parts = startVal.split('-');
+    const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+    if (orderDate < startDate) return false;
+  }
+  
+  if (endVal) {
+    const parts = endVal.split('-');
+    const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+    if (orderDate > endDate) return false;
+  }
+  
+  return true;
+}
+
+function onRiderPaymentsDateChange() {
+  renderRiderPayments();
+}
+
+function resetRiderPaymentsDateFilter() {
+  const startInput = document.getElementById('rider-payment-start-date');
+  const endInput = document.getElementById('rider-payment-end-date');
+  if (startInput) startInput.value = '';
+  if (endInput) endInput.value = '';
+  renderRiderPayments();
+}
+
+window.onRiderPaymentsDateChange = onRiderPaymentsDateChange;
+window.resetRiderPaymentsDateFilter = resetRiderPaymentsDateFilter;
+
 function renderRiderPayments() {
   const tbody = document.getElementById('rider-payments-table-body');
   if (!tbody) return;
@@ -676,7 +719,7 @@ function renderRiderPayments() {
   mockData.fleet.forEach(rider => totals.set(rider.name, { rider, count: 0, total: 0 }));
 
   mockData.clientHistory
-    .filter(order => order.status === 'Entregue' && isOrderInCurrentWeek(order))
+    .filter(order => order.status === 'Entregue' && isOrderInFilterPeriod(order))
     .forEach(order => {
       if (!totals.has(order.rider)) {
         totals.set(order.rider, { rider: { name: order.rider, id: '—' }, count: 0, total: 0 });
@@ -692,7 +735,35 @@ function renderRiderPayments() {
   const totalEl = document.getElementById('rider-week-total');
   const rangeEl = document.getElementById('rider-week-range');
   if (totalEl) totalEl.innerText = formatMoneyBR(grandTotalNet);
-  if (rangeEl) rangeEl.innerText = getCurrentWeekRangeLabel();
+  
+  if (rangeEl) {
+    const startInput = document.getElementById('rider-payment-start-date');
+    const endInput = document.getElementById('rider-payment-end-date');
+    const startVal = startInput ? startInput.value : '';
+    const endVal = endInput ? endInput.value : '';
+    
+    if (startVal || endVal) {
+      let startLabel = 'Início';
+      let endLabel = 'Fim';
+      
+      const fmt = { day: '2-digit', month: '2-digit', year: 'numeric' };
+      
+      if (startVal) {
+        const parts = startVal.split('-');
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        startLabel = d.toLocaleDateString('pt-BR', fmt);
+      }
+      if (endVal) {
+        const parts = endVal.split('-');
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        endLabel = d.toLocaleDateString('pt-BR', fmt);
+      }
+      
+      rangeEl.innerText = `${startLabel} a ${endLabel}`;
+    } else {
+      rangeEl.innerText = getCurrentWeekRangeLabel();
+    }
+  }
 
   tbody.innerHTML = rows.map(row => {
     const gross = row.total;

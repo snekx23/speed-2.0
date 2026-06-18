@@ -536,9 +536,24 @@
               </div>
             </div>
             <div class="card mt-4">
-              <div class="card-header">
-                <h3>Valores Feitos por Motoboy</h3>
-                <p class="text-muted">Resumo semanal por entregador, com pagamento programado para quinta-feira.</p>
+              <div class="card-header flex-row" style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                  <h3>Valores Feitos por Motoboy</h3>
+                  <p class="text-muted">Resumo semanal por entregador, com pagamento programado para quinta-feira.</p>
+                </div>
+                <div class="date-filter-container" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="rider-payment-start-date" style="font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500;">De:</label>
+                    <input type="date" id="rider-payment-start-date" onchange="onRiderPaymentsDateChange()" style="padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.88rem; outline: none; transition: border-color 0.2s; color-scheme: dark;">
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="rider-payment-end-date" style="font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500;">Até:</label>
+                    <input type="date" id="rider-payment-end-date" onchange="onRiderPaymentsDateChange()" style="padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.88rem; outline: none; transition: border-color 0.2s; color-scheme: dark;">
+                  </div>
+                  <button id="btn-clear-date-filter" onclick="resetRiderPaymentsDateFilter()" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; height: 32px; font-size: 0.8rem; cursor: pointer; border: 1px solid var(--border-color); background: var(--secondary); color: var(--color-text); border-radius: var(--border-radius-sm); transition: background 0.2s;">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Limpar
+                  </button>
+                </div>
               </div>
               <div class="card-body no-padding">
                 <div class="table-responsive">
