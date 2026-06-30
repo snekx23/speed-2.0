@@ -3744,7 +3744,44 @@ function updateCourierCardUI(rider) {
 }
 
 async function trackActiveOrder(orderId) {
-  if (!supabaseClient)// ================= VALES & CONSUMÍVEIS MODULE =================
+  if (!supabaseClient) return;
+
+  const { data: histData } = await supabaseClient
+    .from('client_history')
+    .select('*')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (histData) {
+    startRealtimeTracking({
+      id: histData.id,
+      pickup_lat: histData.pickup_lat,
+      pickup_lng: histData.pickup_lng,
+      dest_lat: histData.dest_lat,
+      dest_lng: histData.dest_lng,
+      status: histData.status
+    });
+  } else {
+    const { data: pendingData } = await supabaseClient
+      .from('pending_deliveries')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (pendingData) {
+      startRealtimeTracking(pendingData);
+    }
+  }
+
+  const trackingTabBtn = document.getElementById('nav-tracking-tab');
+  if (trackingTabBtn) {
+    trackingTabBtn.disabled = false;
+    trackingTabBtn.querySelector('.pulse-dot').classList.remove('hidden');
+  }
+  switchDashboardTab('order-tracking');
+}
+
+// ================= VALES & CONSUMÍVEIS MODULE =================
 
 // State variables
 let speedLaunches = [];
