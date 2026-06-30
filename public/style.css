@@ -2619,3 +2619,72 @@ input:checked + .slider:before {
 .table-scroll-container::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+/* Google Maps InfoWindow - Modern Dark Theme Customization */
+.gm-style-iw-c {
+  background-color: rgba(24, 24, 32, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+  padding: 0 !important;
+}
+
+.gm-style-iw-d {
+  overflow: hidden !important;
+  padding: 18px 16px 16px 16px !important;
+  background: transparent !important;
+}
+
+.gm-ui-hover-effect {
+  top: 10px !important;
+  right: 10px !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 50% !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.2s !important;
+}
+
+.gm-ui-hover-effect:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.gm-ui-hover-effect > span {
+  background-color: #ffffff !important;
+  margin: 0 !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.gm-style-iw-tc::after {
+  background-color: rgba(24, 24, 32, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Ensure text readability inside popups */
+.map-popup-card h4 {
+  color: #ffffff !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+}
+
+.map-popup-card p {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 0.82rem !important;
+}
+
+.map-popup-manager h5 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.assigned-teles-list span {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
