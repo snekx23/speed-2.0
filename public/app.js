@@ -1794,59 +1794,73 @@ function renderMapMarkers(centerCoords) {
       </div>
     `;
 
-    let dispatchHtml = '';
-    if (currentStatus !== 'Em Descanso') {
-      if (mockData.pendingDeliveries.length > 0) {
-        const deliveryOptions = mockData.pendingDeliveries
-          .map(d => `<option value="${d.id}">${d.id} - ${d.client} (${d.dist})</option>`)
-          .join('');
+    let displayStatus = 'Sem Tele';
+    let displayStatusColor = '#01afec';
+    let displayStatusBg = 'var(--accent-cyan-glow)';
+    
+    let activeOrders = [];
+    if (mockRider) {
+      activeOrders = getActiveOrdersForRider(mockRider);
+      if (activeOrders.length > 0) {
+        displayStatus = 'Com Tele';
+        displayStatusColor = '#eb2690';
+        displayStatusBg = 'var(--primary-glow)';
+      }
+    }
 
-        const riderIdSafe = mockRider ? mockRider.id.replace('#', '') : rider.name.replace(/\W/g, '');
-
-        dispatchHtml = `
-          <div class="map-popup-dispatch">
-            <label>Enviar tele para este motoboy</label>
-            <select id="popup-select-delivery-${riderIdSafe}" class="map-popup-select">
-                <option value="" disabled selected>Escolha a tele...</option>
-                ${deliveryOptions}
-            </select>
-            <div class="map-popup-actions">
-              <button class="map-popup-send-btn" onclick="handlePopupDispatch('${escapeHtml(rider.name)}')">
-                <i data-lucide="send"></i>
-                <span>Enviar</span>
-              </button>
-              ${mockRider ? `
-                <button class="map-popup-remove-btn" onclick="openRemoveTeleModal('${mockRider.id}')">Remover tele</button>
-                <button class="map-popup-settings-btn" onclick="openRiderActions('${mockRider.id}')" title="Funções do motoboy" aria-label="Funções do motoboy">
-                  <i data-lucide="settings"></i>
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        `;
-      } else {
-        dispatchHtml = `
-          <div class="map-popup-dispatch map-popup-empty-actions">
-            <span>Nenhuma tele pendente.</span>
-            ${mockRider ? `
-              <div class="map-popup-actions">
-                <button class="map-popup-remove-btn" onclick="openRemoveTeleModal('${mockRider.id}')">Remover tele</button>
-                <button class="map-popup-settings-btn" onclick="openRiderActions('${mockRider.id}')" title="Funções do motoboy" aria-label="Funções do motoboy">
-                  <i data-lucide="settings"></i>
+    let managerHtml = '';
+    if (mockRider) {
+      const riderIdSafe = mockRider.id.replace('#', '');
+      
+      const ordersListHtml = activeOrders.length > 0
+        ? `
+          <div class="assigned-teles-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+            ${activeOrders.map(order => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 6px 8px; border-radius: 6px; font-size: 0.78rem;">
+                <span style="color: var(--color-text); font-weight: 500;">#${order.id} - ${escapeHtml(order.dest_name || 'Cliente')}</span>
+                <button onclick="handlePopupRemoveTele('${order.id}', '${mockRider.id}')" style="background: none; border: none; color: var(--primary); cursor: pointer; display: flex; align-items: center; padding: 2px;" title="Remover Tele">
+                  <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                 </button>
               </div>
-            ` : ''}
+            `).join('')}
           </div>
-        `;
-      }
+        `
+        : `<p style="margin: 0 0 10px 0; font-size: 0.78rem; color: var(--color-text-muted); font-style: italic;">Nenhuma tele vinculada</p>`;
+
+      const selectOptions = mockData.pendingDeliveries
+        .map(d => `<option value="${d.id}">#${d.id} - ${escapeHtml(d.client)} (${d.dist})</option>`)
+        .join('');
+
+      const addTeleHtml = mockData.pendingDeliveries.length > 0
+        ? `
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <select id="popup-add-tele-select-${riderIdSafe}" style="flex: 1; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.78rem; padding: 6px 8px; outline: none; height: 32px;">
+              <option value="" disabled selected>Vincular nova tele...</option>
+              ${selectOptions}
+            </select>
+            <button onclick="handlePopupAddTele('${mockRider.id}')" style="background: var(--primary); border: none; color: #fff; border-radius: var(--border-radius-sm); padding: 0 10px; height: 32px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+              <span>Vincular</span>
+            </button>
+          </div>
+        `
+        : `<p style="margin: 0; font-size: 0.75rem; color: var(--color-text-muted);">Sem teles pendentes no sistema</p>`;
+
+      managerHtml = `
+        <div class="map-popup-manager" style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+          <h5 style="margin: 0 0 8px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 600; letter-spacing: 0.05em;">Gerenciar Teles</h5>
+          ${ordersListHtml}
+          ${addTeleHtml}
+        </div>
+      `;
     }
 
     const popupContent = `
       <div class="map-popup-card">
         <h4>${escapeHtml(rider.name)}</h4>
         <p>${escapeHtml(rider.vehicle)} • <strong>${escapeHtml(rider.plate)}</strong></p>
-        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#eb2690' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#eb2690' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${escapeHtml(currentStatus)}</span>
-        ${dispatchHtml}
+        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${displayStatusColor}; background: ${displayStatusBg};">${escapeHtml(displayStatus)}</span>
+        ${managerHtml}
       </div>
     `;
 
@@ -1873,6 +1887,155 @@ function renderMapMarkers(centerCoords) {
     }
   });
 }
+
+async function handlePopupRemoveTele(deliveryId, riderId) {
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  if (!rider) return;
+  if (!confirm(`Remover a tele ${deliveryId} de ${rider.name} e devolver para pendentes?`)) return;
+
+  const order = mockData.clientHistory.find(item => item.id === deliveryId);
+  if (!order) return;
+
+  const pendingPayload = {
+    id: order.id,
+    client: 'Burger do Chef',
+    dest_name: order.destName || 'Cliente Express',
+    address: order.address,
+    dist: order.dist,
+    price: order.price,
+    payment: 'A combinar',
+    cargo: 'Pedido'
+  };
+
+  if (supabaseClient) {
+    const { error: pendingError } = await supabaseClient
+      .from('pending_deliveries')
+      .upsert([pendingPayload]);
+    if (pendingError) {
+      alert('Erro ao devolver a tele para pendentes.');
+      return;
+    }
+
+    const { error: historyError } = await supabaseClient
+      .from('client_history')
+      .delete()
+      .eq('id', deliveryId);
+    if (historyError) {
+      alert('Erro ao remover a tele do histórico ativo.');
+      return;
+    }
+
+    const remainingOrders = getActiveOrdersForRider(rider).filter(item => item.id !== deliveryId);
+    if (remainingOrders.length === 0) {
+      await supabaseClient
+        .from('fleet')
+        .update({ status: 'Disponível', status_class: 'status-success', delivery: 'Nenhuma' })
+        .eq('id', riderId);
+    }
+  }
+
+  await fetchPendingDeliveries();
+  await fetchFleet();
+  await fetchClientHistory();
+  renderPendingDeliveries();
+  renderActiveDeliveries();
+  renderFleetTable();
+  renderRiderPayments();
+
+  if (ownerFleetMap) {
+    selectedMapRiderId = riderId;
+    const centerCoords = getMapCenterCoords(ownerFleetMap);
+    renderMapMarkers(centerCoords);
+  }
+
+  showToastNotification(`Tele ${deliveryId} removida de ${rider.name}.`);
+}
+
+async function handlePopupAddTele(riderId) {
+  const selectId = `popup-add-tele-select-${riderId.replace('#', '')}`;
+  const select = document.getElementById(selectId);
+  if (!select || !select.value) {
+    alert("Por favor, selecione uma tele para vincular!");
+    return;
+  }
+  const deliveryId = select.value;
+
+  const deliveryIndex = mockData.pendingDeliveries.findIndex(d => d.id === deliveryId);
+  if (deliveryIndex === -1) return;
+  const delivery = mockData.pendingDeliveries[deliveryIndex];
+
+  const rider = mockData.fleet.find(r => r.id === riderId);
+  if (!rider) return;
+
+  if (supabaseClient) {
+    const { error: fleetError } = await supabaseClient
+      .from('fleet')
+      .update({
+        status: 'A caminho da coleta',
+        status_class: 'status-progress',
+        delivery: deliveryId
+      })
+      .eq('id', riderId);
+
+    if (fleetError) {
+      console.error("Error updating rider status on Supabase:", fleetError);
+      alert("Erro ao atualizar o status do motoboy no Supabase.");
+      return;
+    }
+
+    const { error: deleteError } = await supabaseClient
+      .from('pending_deliveries')
+      .delete()
+      .eq('id', deliveryId);
+
+    if (deleteError) {
+      console.error("Error deleting pending delivery on Supabase:", deleteError);
+      alert("Erro ao remover a tele das pendências no Supabase.");
+      return;
+    }
+
+    const newHistoryItem = {
+      id: deliveryId,
+      dest_name: delivery.destName || 'Cliente Express',
+      address: delivery.address,
+      rider: rider.name,
+      dist: delivery.dist,
+      price: delivery.price,
+      date: 'Hoje, ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      status: 'A caminho da coleta',
+      status_class: 'status-progress'
+    };
+
+    const { error: historyError } = await supabaseClient
+      .from('client_history')
+      .insert([newHistoryItem]);
+
+    if (historyError) {
+      console.error("Error inserting delivery history on Supabase:", historyError);
+      alert("Erro ao salvar o histórico de entrega no Supabase.");
+      return;
+    }
+  }
+
+  await fetchPendingDeliveries();
+  await fetchFleet();
+  await fetchClientHistory();
+  renderPendingDeliveries();
+  renderActiveDeliveries();
+  renderFleetTable();
+  renderRiderPayments();
+
+  if (ownerFleetMap) {
+    selectedMapRiderId = riderId;
+    const centerCoords = getMapCenterCoords(ownerFleetMap);
+    renderMapMarkers(centerCoords);
+  }
+
+  showToastNotification(`Tele ${deliveryId} vinculada com sucesso para ${rider.name}!`);
+}
+
+window.handlePopupRemoveTele = handlePopupRemoveTele;
+window.handlePopupAddTele = handlePopupAddTele;
 
 // Render pending deliveries (dispatch system) cards
 function renderPendingDeliveries() {
