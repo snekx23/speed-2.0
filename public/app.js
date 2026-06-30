@@ -11,6 +11,93 @@ if (window.supabase) {
   console.error("Supabase SDK not loaded!");
 }
 
+// Google Maps Configuration & Helper
+const darkMapStyle = [
+  { elementType: "geometry", stylers: [{ color: "#181820" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8e8e9f" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#181820" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#272732" }] },
+  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#272732" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8e8e9f" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d0d11" }] }
+];
+
+function loadGoogleMapsAPI(callback) {
+  if (window.google && window.google.maps) {
+    if (callback) callback();
+    return;
+  }
+  const key = localStorage.getItem('speed_google_maps_key') || 'AIzaSyBkwbG65d17USn4PLxNzyPN7QODNaWWZ0k';
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,places`;
+  script.async = true;
+  script.defer = true;
+  script.onload = () => {
+    class CustomHTMLMapMarker extends google.maps.OverlayView {
+      constructor(latlng, map, html, onClick) {
+        super();
+        this.latlng = latlng;
+        this.html = html;
+        this.onClick = onClick;
+        
+        this.div = document.createElement('div');
+        this.div.style.position = 'absolute';
+        this.div.style.cursor = 'pointer';
+        this.div.innerHTML = html;
+        
+        if (onClick) {
+          this.div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClick(e);
+          });
+        }
+        this.setMap(map);
+      }
+      onAdd() {
+        const pane = this.getPanes().overlayMouseTarget;
+        pane.appendChild(this.div);
+      }
+      draw() {
+        const projection = this.getProjection();
+        if (!projection) return;
+        const point = projection.fromLatLngToDivPixel(this.latlng);
+        if (point) {
+          this.div.style.left = (point.x - 10) + 'px';
+          this.div.style.top = (point.y - 10) + 'px';
+        }
+      }
+      onRemove() {
+        if (this.div && this.div.parentNode) {
+          this.div.parentNode.removeChild(this.div);
+        }
+      }
+      setLatLng(latlng) {
+        this.latlng = latlng;
+        this.draw();
+      }
+      getLatLng() {
+        return this.latlng;
+      }
+    }
+    window.CustomHTMLMapMarker = CustomHTMLMapMarker;
+    if (callback) callback();
+  };
+  script.onerror = () => {
+    console.error("Erro ao carregar o Google Maps.");
+  };
+  document.head.appendChild(script);
+}
+
+function getMapCenterCoords(map) {
+  if (!map) return [0, 0];
+  const center = map.getCenter();
+  if (!center) return [0, 0];
+  const lat = (typeof center.lat === 'function') ? center.lat() : center.lat;
+  const lng = (typeof center.lng === 'function') ? center.lng() : center.lng;
+  return [lat, lng];
+}
+
 // Mock Database States (updated dynamically from Supabase)
 const mockData = {
   activeProfile: 'owner', // 'owner', 'client', 'order'
@@ -250,6 +337,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeMobileSidebar();
       }
     });
+  }
+
+  // Load Google Maps API Key input from localStorage
+  const keyInput = document.getElementById('settings-google-maps-key');
+  if (keyInput) {
+    keyInput.value = localStorage.getItem('speed_google_maps_key') || '';
   }
 });
 
@@ -962,6 +1055,43 @@ function toggleSimultaneousDeliveriesAccordion() {
   }
 }
 
+function toggleGoogleMapsAccordion() {
+  const accordion = document.getElementById('google-maps-accordion');
+  if (!accordion) return;
+
+  const chevron = accordion.querySelector('.accordion-chevron');
+  const collapseWrapper = accordion.querySelector('.accordion-collapse-wrapper');
+
+  const isExpanded = accordion.classList.toggle('expanded');
+
+  if (isExpanded) {
+    chevron.style.transform = 'rotate(180deg)';
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    setTimeout(() => {
+      if (accordion.classList.contains('expanded')) {
+        collapseWrapper.style.maxHeight = 'fit-content';
+      }
+    }, 250);
+  } else {
+    collapseWrapper.style.maxHeight = collapseWrapper.scrollHeight + 'px';
+    collapseWrapper.offsetHeight; // force reflow
+    chevron.style.transform = 'rotate(0deg)';
+    collapseWrapper.style.maxHeight = '0';
+  }
+}
+
+function saveGoogleMapsKey() {
+  const keyInput = document.getElementById('settings-google-maps-key');
+  if (!keyInput) return;
+  const key = keyInput.value.trim();
+  localStorage.setItem('speed_google_maps_key', key);
+  alert("Chave do Google Maps salva com sucesso! Recarregue a página para aplicar.");
+  location.reload();
+}
+
+window.toggleGoogleMapsAccordion = toggleGoogleMapsAccordion;
+window.saveGoogleMapsKey = saveGoogleMapsKey;
+
 // Render simultaneous deliveries limits list for each motoboy
 function renderRiderLimits() {
   const tbody = document.getElementById('rider-limits-table-body');
@@ -1550,77 +1680,73 @@ function initOwnerFleetMap() {
   const mapContainer = document.getElementById('owner-fleet-map');
   if (!mapContainer) return;
 
-  // If map is already initialized, we just invalidate size to make sure it renders correctly
   if (ownerFleetMap) {
-    setTimeout(() => {
-      ownerFleetMap.invalidateSize();
-    }, 100);
-    return;
+    if (ownerFleetMap.getCenter) return;
   }
 
-  // Fallback central coordinates (São Paulo)
   let centerCoords = [-23.55052, -46.633308];
 
-  // Create map instance
-  ownerFleetMap = L.map('owner-fleet-map').setView(centerCoords, 14);
+  loadGoogleMapsAPI(() => {
+    const latLng = new google.maps.LatLng(centerCoords[0], centerCoords[1]);
+    ownerFleetMap = new google.maps.Map(mapContainer, {
+      center: latLng,
+      zoom: 14,
+      styles: darkMapStyle,
+      disableDefaultUI: true,
+      zoomControl: true
+    });
 
-  // CartoDB Dark Matter tile layer for premium dark aesthetics
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 20
-  }).addTo(ownerFleetMap);
-
-  // Try to fetch user geolocation
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        centerCoords = [position.coords.latitude, position.coords.longitude];
-        ownerFleetMap.setView(centerCoords, 14);
-        renderMapMarkers(centerCoords);
-      },
-      (error) => {
-        console.warn("Geolocation failed or denied. Using fallback coordinates.", error);
-        renderMapMarkers(centerCoords);
-      }
-    );
-  } else {
-    renderMapMarkers(centerCoords);
-  }
-}
-
-// Render markers on the map relative to the center coordinate
-function renderMapMarkers(centerCoords) {
-  // Clear any existing markers (if any)
-  ownerFleetMap.eachLayer((layer) => {
-    if (layer instanceof L.Marker) {
-      ownerFleetMap.removeLayer(layer);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          centerCoords = [position.coords.latitude, position.coords.longitude];
+          const newCenter = new google.maps.LatLng(centerCoords[0], centerCoords[1]);
+          ownerFleetMap.setCenter(newCenter);
+          renderMapMarkers(centerCoords);
+        },
+        (error) => {
+          console.warn("Geolocation failed. Using default center.", error);
+          renderMapMarkers(centerCoords);
+        }
+      );
+    } else {
+      renderMapMarkers(centerCoords);
     }
   });
+}
 
-  // 1. Add Owner/Central marker (You)
+function renderMapMarkers(centerCoords) {
+  if (window.ownerFleetMarkers) {
+    window.ownerFleetMarkers.forEach(m => m.setMap(null));
+  }
+  window.ownerFleetMarkers = [];
+
+  const centralLatLng = new google.maps.LatLng(centerCoords[0], centerCoords[1]);
   const centralIconHtml = `
     <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
       <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
       <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
     </div>
   `;
-  const centralIcon = L.divIcon({
-    html: centralIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11]
-  });
   
-  L.marker(centerCoords, { icon: centralIcon })
-    .addTo(ownerFleetMap)
-    .bindPopup(`
-      <div class="map-popup-card">
-        <h4 style="color: var(--color-text); margin: 0 0 4px 0; font-family: var(--font-display); font-weight: 700;">Sua Central</h4>
-        <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-muted);">Localização em tempo real</p>
-      </div>
-    `);
+  const centralMarker = new window.CustomHTMLMapMarker(
+    centralLatLng,
+    ownerFleetMap,
+    centralIconHtml,
+    () => {
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div class="map-popup-card">
+            <h4 style="color: var(--color-text); margin: 0 0 4px 0; font-family: var(--font-display); font-weight: 700;">Sua Central</h4>
+            <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-muted);">Localização em tempo real</p>
+          </div>
+        `
+      });
+      infoWindow.open(ownerFleetMap, centralMarker);
+    }
+  );
+  window.ownerFleetMarkers.push(centralMarker);
 
-  // Offsets to distribute riders around the center coordinates
   const offsets = [
     [0.004, -0.006],
     [0.008, 0.012],
@@ -1630,7 +1756,6 @@ function renderMapMarkers(centerCoords) {
     [-0.009, 0.005]
   ];
 
-  // Fallback demo riders when Supabase does not return fleet rows.
   const demoRidersLocations = [
     { name: 'Carlos Oliveira', vehicle: 'Honda CG 160 Fan', plate: 'ABC-1234', status: 'A caminho da coleta', statusColor: '#eb2690', offset: offsets[0] },
     { name: 'Marcos Santos', vehicle: 'Yamaha YZF-R3', plate: 'XYZ-9876', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[1] },
@@ -1639,6 +1764,7 @@ function renderMapMarkers(centerCoords) {
     { name: 'Aline Dias', vehicle: 'Voltz EVS (Elétrica)', plate: 'ELE-2026', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[4] },
     { name: 'Lucas Souza', vehicle: 'Yamaha Fazer 250', plate: 'DEF-4321', status: 'Disponível', statusColor: '#01afec', offset: offsets[5] }
   ];
+
   const ridersLocations = mockData.fleet.length
     ? mockData.fleet.map((rider, index) => ({
         id: rider.id,
@@ -1651,9 +1777,7 @@ function renderMapMarkers(centerCoords) {
       }))
     : demoRidersLocations;
 
-  // Add markers to map
   ridersLocations.forEach(rider => {
-    // Find matching rider details in mockData.fleet to make sure status is accurate
     const mockRider = mockData.fleet.find(r => r.name === rider.name);
     const currentStatus = mockRider ? mockRider.status : rider.status;
     const currentStatusColor = mockRider 
@@ -1661,6 +1785,7 @@ function renderMapMarkers(centerCoords) {
       : rider.statusColor;
 
     const riderCoords = [centerCoords[0] + rider.offset[0], centerCoords[1] + rider.offset[1]];
+    const riderLatLng = new google.maps.LatLng(riderCoords[0], riderCoords[1]);
     const isPulsing = currentStatus !== 'Em Descanso';
     const markerHtml = `
       <div class="custom-map-marker" style="background-color: ${currentStatusColor}; box-shadow: 0 0 10px ${currentStatusColor};">
@@ -1669,16 +1794,6 @@ function renderMapMarkers(centerCoords) {
       </div>
     `;
 
-    const customIcon = L.divIcon({
-      html: markerHtml,
-      className: 'custom-div-icon',
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-
-    const marker = L.marker(riderCoords, { icon: customIcon }).addTo(ownerFleetMap);
-
-    // Generate pending deliveries options for popup dropdown
     let dispatchHtml = '';
     if (currentStatus !== 'Em Descanso') {
       if (mockData.pendingDeliveries.length > 0) {
@@ -1726,7 +1841,6 @@ function renderMapMarkers(centerCoords) {
       }
     }
 
-    // Popup custom content
     const popupContent = `
       <div class="map-popup-card">
         <h4>${escapeHtml(rider.name)}</h4>
@@ -1736,11 +1850,26 @@ function renderMapMarkers(centerCoords) {
       </div>
     `;
 
-    marker.bindPopup(popupContent);
-    marker.on('popupopen', () => lucide.createIcons());
+    const marker = new window.CustomHTMLMapMarker(
+      riderLatLng,
+      ownerFleetMap,
+      markerHtml,
+      () => {
+        const infoWindow = new google.maps.InfoWindow({ content: popupContent });
+        google.maps.event.addListener(infoWindow, 'domready', () => lucide.createIcons());
+        infoWindow.open(ownerFleetMap, marker);
+      }
+    );
+    window.ownerFleetMarkers.push(marker);
+
     if (mockRider && selectedMapRiderId === mockRider.id) {
-      ownerFleetMap.setView(riderCoords, 16);
-      setTimeout(() => marker.openPopup(), 150);
+      ownerFleetMap.setCenter(riderLatLng);
+      ownerFleetMap.setZoom(16);
+      setTimeout(() => {
+        const infoWindow = new google.maps.InfoWindow({ content: popupContent });
+        google.maps.event.addListener(infoWindow, 'domready', () => lucide.createIcons());
+        infoWindow.open(ownerFleetMap, marker);
+      }, 150);
     }
   });
 }
@@ -1830,7 +1959,7 @@ window.handlePopupDispatch = function(riderName) {
   }
 
   // Close map popups before dispatching
-  if (ownerFleetMap) {
+  if (ownerFleetMap && ownerFleetMap.closePopup) {
     ownerFleetMap.closePopup();
   }
 
@@ -1915,8 +2044,8 @@ async function dispatchDelivery(deliveryId, riderId) {
   // Get current active map coordinates (from geolocation or fallback)
   // Re-render the map markers to show the updated status
   if (ownerFleetMap) {
-    const center = ownerFleetMap.getCenter();
-    renderMapMarkers([center.lat, center.lng]);
+    const centerCoords = getMapCenterCoords(ownerFleetMap);
+    renderMapMarkers(centerCoords);
   }
 
   // Display Premium Alert/Notification
@@ -2020,8 +2149,8 @@ async function completeDelivery(deliveryId, riderName) {
 
   // Re-render map markers
   if (ownerFleetMap) {
-    const center = ownerFleetMap.getCenter();
-    renderMapMarkers([center.lat, center.lng]);
+    const centerCoords = getMapCenterCoords(ownerFleetMap);
+    renderMapMarkers(centerCoords);
   }
 
   // Display toast notification
@@ -2205,8 +2334,8 @@ async function removeTeleFromRider(deliveryId, riderId) {
   renderRiderPayments();
 
   if (ownerFleetMap) {
-    const center = ownerFleetMap.getCenter();
-    renderMapMarkers([center.lat, center.lng]);
+    const centerCoords = getMapCenterCoords(ownerFleetMap);
+    renderMapMarkers(centerCoords);
   }
 
   closeRemoveTeleModal();
@@ -3316,111 +3445,122 @@ function initRequestDeliveryMap() {
   const mapContainer = document.getElementById('request-delivery-map');
   if (!mapContainer) return;
 
-  // If map is already initialized, just invalidate size so it redraws correctly
   if (requestDeliveryMap) {
-    setTimeout(() => {
-      requestDeliveryMap.invalidateSize();
-    }, 100);
-    return;
+    if (requestDeliveryMap.getCenter) return;
   }
 
-  // Create map instance
-  requestDeliveryMap = L.map('request-delivery-map', { attributionControl: false }).setView(requestDeliveryCenterCoords, 14);
+  loadGoogleMapsAPI(() => {
+    const latLng = new google.maps.LatLng(requestDeliveryCenterCoords[0], requestDeliveryCenterCoords[1]);
+    requestDeliveryMap = new google.maps.Map(mapContainer, {
+      center: latLng,
+      zoom: 14,
+      styles: darkMapStyle,
+      disableDefaultUI: true,
+      zoomControl: true
+    });
 
-  // CartoDB Dark Matter tile layer for premium dark aesthetics
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 20
-  }).addTo(requestDeliveryMap);
+    const restaurantIconHtml = `
+      <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
+        <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
+        <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
+      </div>
+    `;
 
-  // Initialize restaurant marker HTML
-  const restaurantIconHtml = `
-    <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
-      <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
-      <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
-    </div>
-  `;
-  const restaurantIcon = L.divIcon({
-    html: restaurantIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11]
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          requestDeliveryCenterCoords = [position.coords.latitude, position.coords.longitude];
+          const newCenter = new google.maps.LatLng(requestDeliveryCenterCoords[0], requestDeliveryCenterCoords[1]);
+          requestDeliveryMap.setCenter(newCenter);
+          
+          restaurantMarker = new window.CustomHTMLMapMarker(newCenter, requestDeliveryMap, restaurantIconHtml, () => {
+            const info = new google.maps.InfoWindow({ content: '<strong style="color:var(--color-text);">Seu Comércio</strong>' });
+            info.open(requestDeliveryMap, restaurantMarker);
+          });
+        },
+        (error) => {
+          console.warn("Geolocation failed. Using fallback.", error);
+          const fallbackCenter = new google.maps.LatLng(requestDeliveryCenterCoords[0], requestDeliveryCenterCoords[1]);
+          restaurantMarker = new window.CustomHTMLMapMarker(fallbackCenter, requestDeliveryMap, restaurantIconHtml, () => {
+            const info = new google.maps.InfoWindow({ content: '<strong style="color:var(--color-text);">Seu Comércio</strong>' });
+            info.open(requestDeliveryMap, restaurantMarker);
+          });
+        }
+      );
+    } else {
+      const fallbackCenter = new google.maps.LatLng(requestDeliveryCenterCoords[0], requestDeliveryCenterCoords[1]);
+      restaurantMarker = new window.CustomHTMLMapMarker(fallbackCenter, requestDeliveryMap, restaurantIconHtml, () => {
+        const info = new google.maps.InfoWindow({ content: '<strong style="color:var(--color-text);">Seu Comércio</strong>' });
+        info.open(requestDeliveryMap, restaurantMarker);
+      });
+    }
+
+    requestDeliveryMap.addListener('click', (e) => {
+      updateRequestDeliveryDestination(e.latLng.lat(), e.latLng.lng());
+    });
+
+    setupAddressGeocodingListener();
   });
-
-  // Try to fetch user geolocation to center map on the client's city
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        requestDeliveryCenterCoords = [position.coords.latitude, position.coords.longitude];
-        requestDeliveryMap.setView(requestDeliveryCenterCoords, 14);
-        
-        // Add restaurant marker at center
-        restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
-        restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
-      },
-      (error) => {
-        console.warn("Geolocation failed or denied. Using fallback coordinates.", error);
-        restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
-        restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
-      }
-    );
-  } else {
-    restaurantMarker = L.marker(requestDeliveryCenterCoords, { icon: restaurantIcon }).addTo(requestDeliveryMap);
-    restaurantMarker.bindPopup('<strong style="color:var(--color-text);">Seu Comércio</strong>').openPopup();
-  }
-
-  // Handle click on map to set delivery destination
-  requestDeliveryMap.on('click', (e) => {
-    const latlng = e.latlng;
-    updateRequestDeliveryDestination(latlng.lat, latlng.lng);
-  });
-
-  // Setup direct geocoding input listener (with a debounce)
-  setupAddressGeocodingListener();
 }
 
 function updateRequestDeliveryDestination(lat, lng, shouldCenter = false) {
   if (!requestDeliveryMap) return;
 
-  const destIconHtml = `
-    <div class="custom-map-marker" style="background-color: #eb2690; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #eb2690;">
-    </div>
-  `;
-  const destIcon = L.divIcon({
-    html: destIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  });
+  const destLatLng = new google.maps.LatLng(lat, lng);
 
   if (requestDeliveryMarker) {
-    requestDeliveryMarker.setLatLng([lat, lng]);
+    if (requestDeliveryMarker.setPosition) {
+      requestDeliveryMarker.setPosition(destLatLng);
+    }
   } else {
-    requestDeliveryMarker = L.marker([lat, lng], { icon: destIcon, draggable: true }).addTo(requestDeliveryMap);
-    
-    // Listen to marker drag event
-    requestDeliveryMarker.on('dragend', (e) => {
-      const pos = e.target.getLatLng();
-      updateRequestDeliveryDestination(pos.lat, pos.lng);
+    requestDeliveryMarker = new google.maps.Marker({
+      position: destLatLng,
+      map: requestDeliveryMap,
+      draggable: true,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: '#eb2690',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        scale: 8
+      }
+    });
+
+    requestDeliveryMarker.addListener('dragend', () => {
+      const pos = requestDeliveryMarker.getPosition();
+      updateRequestDeliveryDestination(pos.lat(), pos.lng());
     });
   }
 
   if (shouldCenter) {
-    requestDeliveryMap.setView([lat, lng], 15);
+    if (requestDeliveryMap.setCenter) {
+      requestDeliveryMap.setCenter(destLatLng);
+    }
   }
 
-  // Update polyline route
-  const startCoords = restaurantMarker ? restaurantMarker.getLatLng() : requestDeliveryCenterCoords;
+  const startLatLng = restaurantMarker ? restaurantMarker.getLatLng() : new google.maps.LatLng(requestDeliveryCenterCoords[0], requestDeliveryCenterCoords[1]);
+  const routePath = [startLatLng, destLatLng];
+
   if (requestDeliveryRouteLine) {
-    requestDeliveryRouteLine.setLatLngs([startCoords, [lat, lng]]);
+    if (requestDeliveryRouteLine.setPath) {
+      requestDeliveryRouteLine.setPath(routePath);
+    }
   } else {
-    requestDeliveryRouteLine = L.polyline([startCoords, [lat, lng]], {
-      color: '#eb2690',
-      dashArray: '5, 10',
-      weight: 3
-    }).addTo(requestDeliveryMap);
+    requestDeliveryRouteLine = new google.maps.Polyline({
+      path: routePath,
+      map: requestDeliveryMap,
+      strokeColor: '#eb2690',
+      strokeOpacity: 0.8,
+      strokeWeight: 3,
+      icons: [{
+        icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+        offset: '0',
+        repeat: '20px'
+      }]
+    });
   }
 
-  // Perform reverse geocoding
   fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
     .then(res => res.json())
     .then(data => {
@@ -3589,78 +3729,91 @@ function initTrackingMap(pickupLat, pickupLng, destLat, destLng) {
   if (!mapContainer) return;
 
   if (trackingMapInstance) {
-    trackingMapInstance.remove();
+    if (trackingMapInstance.setMap) {
+      // Handled
+    } else if (trackingMapInstance.remove) {
+      trackingMapInstance.remove();
+    }
     trackingMapInstance = null;
   }
 
-  trackingMapInstance = L.map('tracking-map', { attributionControl: false }).setView([pickupLat, pickupLng], 14);
+  loadGoogleMapsAPI(() => {
+    const pickupLatLng = new google.maps.LatLng(pickupLat, pickupLng);
+    const destLatLng = new google.maps.LatLng(destLat, destLng);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 20
-  }).addTo(trackingMapInstance);
+    trackingMapInstance = new google.maps.Map(mapContainer, {
+      center: pickupLatLng,
+      zoom: 14,
+      styles: darkMapStyle,
+      disableDefaultUI: true,
+      zoomControl: true
+    });
 
-  const pickupIconHtml = `
-    <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
-      <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
-      <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
-    </div>
-  `;
-  const pickupIcon = L.divIcon({
-    html: pickupIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11]
+    const pickupIconHtml = `
+      <div class="custom-map-marker central-marker" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff; border-color: var(--primary);">
+        <div class="marker-pulse" style="border-color: var(--primary); animation-duration: 2.5s;"></div>
+        <i class="marker-icon-dot" style="background-color: var(--primary); width: 6px; height: 6px; border-radius: 50%; display: block;"></i>
+      </div>
+    `;
+
+    const destIconHtml = `
+      <div class="custom-map-marker" style="background-color: #eb2690; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #eb2690;">
+      </div>
+    `;
+
+    trackingPickupMarker = new window.CustomHTMLMapMarker(pickupLatLng, trackingMapInstance, pickupIconHtml, () => {
+      const info = new google.maps.InfoWindow({ content: '<strong style="color:var(--color-text);">Origem (Comércio)</strong>' });
+      info.open(trackingMapInstance, trackingPickupMarker);
+    });
+
+    trackingDestMarker = new window.CustomHTMLMapMarker(destLatLng, trackingMapInstance, destIconHtml, () => {
+      const info = new google.maps.InfoWindow({ content: '<strong style="color:var(--color-text);">Destino (Cliente)</strong>' });
+      info.open(trackingMapInstance, trackingDestMarker);
+    });
+
+    trackingRouteLine = new google.maps.Polyline({
+      path: [pickupLatLng, destLatLng],
+      map: trackingMapInstance,
+      strokeColor: '#eb2690',
+      strokeOpacity: 0.8,
+      strokeWeight: 3,
+      icons: [{
+        icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+        offset: '0',
+        repeat: '20px'
+      }]
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(pickupLatLng);
+    bounds.extend(destLatLng);
+    trackingMapInstance.fitBounds(bounds);
+
+    trackingRiderMarker = null;
   });
-
-  const destIconHtml = `
-    <div class="custom-map-marker" style="background-color: #eb2690; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #eb2690;">
-    </div>
-  `;
-  const destIcon = L.divIcon({
-    html: destIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  });
-
-  trackingPickupMarker = L.marker([pickupLat, pickupLng], { icon: pickupIcon }).addTo(trackingMapInstance);
-  trackingPickupMarker.bindPopup('<strong style="color:var(--color-text);">Origem (Comércio)</strong>');
-
-  trackingDestMarker = L.marker([destLat, destLng], { icon: destIcon }).addTo(trackingMapInstance);
-  trackingDestMarker.bindPopup('<strong style="color:var(--color-text);">Destino (Cliente)</strong>');
-
-  trackingRouteLine = L.polyline([[pickupLat, pickupLng], [destLat, destLng]], {
-    color: '#eb2690',
-    dashArray: '5, 10',
-    weight: 3
-  }).addTo(trackingMapInstance);
-
-  const group = new L.featureGroup([trackingPickupMarker, trackingDestMarker]);
-  trackingMapInstance.fitBounds(group.getBounds().pad(0.15));
-
-  trackingRiderMarker = null;
 }
 
 function updateRiderMarker(lat, lng, riderName) {
   if (!trackingMapInstance || isNaN(lat) || isNaN(lng)) return;
 
+  const riderLatLng = new google.maps.LatLng(lat, lng);
   const riderIconHtml = `
     <div style="width:24px;height:24px;background:#01afec;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(1,175,236,0.7);display:flex;align-items:center;justify-content:center;">
       <i data-lucide="bike" style="width:12px;height:12px;color:#fff;"></i>
     </div>
   `;
-  const riderIcon = L.divIcon({
-    html: riderIconHtml,
-    className: 'custom-div-icon',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
-  });
 
   if (trackingRiderMarker) {
-    trackingRiderMarker.setLatLng([lat, lng]);
+    if (trackingRiderMarker.setLatLng) {
+      trackingRiderMarker.setLatLng(riderLatLng);
+    } else if (trackingRiderMarker.setPosition) {
+      trackingRiderMarker.setPosition(riderLatLng);
+    }
   } else {
-    trackingRiderMarker = L.marker([lat, lng], { icon: riderIcon }).addTo(trackingMapInstance);
-    trackingRiderMarker.bindPopup(`<strong style="color:var(--color-text);">${escapeHtml(riderName)}</strong><br>Localização em tempo real`);
+    trackingRiderMarker = new window.CustomHTMLMapMarker(riderLatLng, trackingMapInstance, riderIconHtml, () => {
+      const info = new google.maps.InfoWindow({ content: `<strong style="color:var(--color-text);">${escapeHtml(riderName)}</strong><br>Localização em tempo real` });
+      info.open(trackingMapInstance, trackingRiderMarker);
+    });
   }
   lucide.createIcons();
 }

@@ -8,9 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- Leaflet CSS & JS for Real Map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Google Maps dynamic API integration -->
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="style.css">
   <!-- Chart.js CDN -->
@@ -1584,6 +1582,38 @@
                         </button>
                       </div>
 
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Accordion/Drawer for Google Maps API Key -->
+                <div class="accordion-item" id="google-maps-accordion" style="margin-top: 16px;">
+                  <div class="accordion-header" onclick="toggleGoogleMapsAccordion()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); transition: background 0.2s ease;">
+                    <div style="flex: 1; padding-right: 16px;">
+                      <h4 style="font-weight: 600; color: var(--color-text); margin: 0 0 4px 0; font-size: 1rem;">Configurações do Google Maps Platform</h4>
+                      <p class="text-muted" style="font-size: 0.82rem; margin: 0; line-height: 1.4;">
+                        Insira sua chave de API do Google Maps para carregar os mapas e buscar endereços nativamente.
+                      </p>
+                    </div>
+                    <i data-lucide="chevron-down" class="accordion-chevron" style="transition: transform 0.25s ease; color: var(--color-text-muted); width: 20px; height: 20px; flex-shrink: 0;"></i>
+                  </div>
+                  
+                  <div class="accordion-collapse-wrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.25s ease-in-out;">
+                    <div class="accordion-content-inner" style="padding: 20px 16px 16px 16px; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm); background: rgba(0, 0, 0, 0.15); display: flex; flex-direction: column; gap: 16px;">
+                      <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label for="settings-google-maps-key" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text);">Chave de API do Google Maps</label>
+                        <div class="input-wrapper" style="position: relative; display: flex; align-items: center;">
+                          <input type="password" id="settings-google-maps-key" placeholder="Ex: AIzaSyA1..." style="width: 100%; padding: 10px 16px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--color-text); font-size: 0.88rem; outline: none; transition: border-color 0.2s;">
+                        </div>
+                        <p class="text-muted" style="font-size: 0.75rem; margin-top: 4px;">Deixe em branco para usar o modo de desenvolvimento padrão (com aviso "Apenas para fins de desenvolvimento" da Google).</p>
+                      </div>
+                      
+                      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="button" class="btn btn-primary" onclick="saveGoogleMapsKey()" style="display: flex; align-items: center; gap: 8px;">
+                          <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                          <span>Salvar Chave</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

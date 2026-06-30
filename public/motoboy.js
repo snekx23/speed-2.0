@@ -14,6 +14,84 @@ let hasCenteredOnce = false;
 let knownActiveTeleIds = null; // IDs of active deliveries to play chime on new arrivals
 let currentPendingTele = null; // Current pending tele displayed in the modal
 
+// Google Maps Configuration & Helper
+const darkMapStyle = [
+  { elementType: "geometry", stylers: [{ color: "#181820" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8e8e9f" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#181820" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#272732" }] },
+  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#272732" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8e8e9f" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d0d11" }] }
+];
+
+function loadGoogleMapsAPI(callback) {
+  if (window.google && window.google.maps) {
+    if (callback) callback();
+    return;
+  }
+  const key = localStorage.getItem('speed_google_maps_key') || 'AIzaSyBkwbG65d17USn4PLxNzyPN7QODNaWWZ0k';
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,places`;
+  script.async = true;
+  script.defer = true;
+  script.onload = () => {
+    class CustomHTMLMapMarker extends google.maps.OverlayView {
+      constructor(latlng, map, html, onClick) {
+        super();
+        this.latlng = latlng;
+        this.html = html;
+        this.onClick = onClick;
+        
+        this.div = document.createElement('div');
+        this.div.style.position = 'absolute';
+        this.div.style.cursor = 'pointer';
+        this.div.innerHTML = html;
+        
+        if (onClick) {
+          this.div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClick(e);
+          });
+        }
+        this.setMap(map);
+      }
+      onAdd() {
+        const pane = this.getPanes().overlayMouseTarget;
+        pane.appendChild(this.div);
+      }
+      draw() {
+        const projection = this.getProjection();
+        if (!projection) return;
+        const point = projection.fromLatLngToDivPixel(this.latlng);
+        if (point) {
+          this.div.style.left = (point.x - 10) + 'px';
+          this.div.style.top = (point.y - 10) + 'px';
+        }
+      }
+      onRemove() {
+        if (this.div && this.div.parentNode) {
+          this.div.parentNode.removeChild(this.div);
+        }
+      }
+      setLatLng(latlng) {
+        this.latlng = latlng;
+        this.draw();
+      }
+      getLatLng() {
+        return this.latlng;
+      }
+    }
+    window.CustomHTMLMapMarker = CustomHTMLMapMarker;
+    if (callback) callback();
+  };
+  script.onerror = () => {
+    console.error("Erro ao carregar o Google Maps.");
+  };
+  document.head.appendChild(script);
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -896,20 +974,20 @@ function initRiderMap() {
   const mapEl = document.getElementById('pwa-map');
   if (!mapEl) return;
 
-  if (typeof L === 'undefined') {
-    mapEl.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--muted); font-size:0.85rem; padding: 20px; text-align:center;">Mapa indisponível offline (Sem conexão com Leaflet).</div>';
-    return;
-  }
+  loadGoogleMapsAPI(() => {
+    const defaultCenter = new google.maps.LatLng(-23.55052, -46.633308);
+    riderMap = new google.maps.Map(mapEl, {
+      center: defaultCenter,
+      zoom: 14,
+      styles: darkMapStyle,
+      disableDefaultUI: true,
+      zoomControl: true
+    });
 
-  riderMap = L.map('pwa-map', { zoomControl: true, attributionControl: false }).setView([-23.55052, -46.633308], 14);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 20
-  }).addTo(riderMap);
-
-  if (lastPosition) {
-    placeRiderMarker(lastPosition.lat, lastPosition.lng);
-  }
+    if (lastPosition) {
+      placeRiderMarker(lastPosition.lat, lastPosition.lng);
+    }
+  });
 }
 
 let riderMarker = null;
@@ -917,22 +995,31 @@ let riderMarker = null;
 function placeRiderMarker(lat, lng) {
   if (!riderMap) return;
 
+  const riderLatLng = new google.maps.LatLng(lat, lng);
   const iconHtml = `
     <div style="width:22px;height:22px;background:#eb2690;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(235,38,144,0.7);display:flex;align-items:center;justify-content:center;">
       <div style="width:6px;height:6px;background:#fff;border-radius:50%;"></div>
     </div>
   `;
-  const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
 
   if (riderMarker) {
-    riderMarker.setLatLng([lat, lng]);
+    if (riderMarker.setLatLng) {
+      riderMarker.setLatLng(riderLatLng);
+    } else if (riderMarker.setPosition) {
+      riderMarker.setPosition(riderLatLng);
+    }
   } else {
-    riderMarker = L.marker([lat, lng], { icon }).addTo(riderMap);
-    riderMarker.bindPopup(`<strong>${currentRider ? currentRider.name : 'Você'}</strong><br>Sua localização atual`);
+    riderMarker = new window.CustomHTMLMapMarker(riderLatLng, riderMap, iconHtml, () => {
+      const info = new google.maps.InfoWindow({ content: `<strong>${currentRider ? escapeHtml(currentRider.name) : 'Você'}</strong><br>Sua localização atual` });
+      info.open(riderMap, riderMarker);
+    });
   }
 
   if (!hasCenteredOnce) {
-    riderMap.setView([lat, lng], 15);
+    if (riderMap.setCenter) {
+      riderMap.setCenter(riderLatLng);
+      riderMap.setZoom(15);
+    }
     hasCenteredOnce = true;
   }
 }
@@ -1299,7 +1386,13 @@ async function loadWeeklyBalance() {
 
 function centerMapOnRider() {
   if (riderMap && lastPosition) {
-    riderMap.setView([lastPosition.lat, lastPosition.lng], 16);
+    const pos = new google.maps.LatLng(lastPosition.lat, lastPosition.lng);
+    if (riderMap.setCenter) {
+      riderMap.setCenter(pos);
+      riderMap.setZoom(16);
+    } else {
+      riderMap.setView([lastPosition.lat, lastPosition.lng], 16);
+    }
   }
 }
 
