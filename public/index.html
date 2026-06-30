@@ -304,8 +304,8 @@
                   <i data-lucide="dollar-sign" class="text-yellow"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>R$ 84.290,00</h3>
-                  <p class="growth-text up"><i data-lucide="trending-up"></i> +12% em relação ao mês anterior</p>
+                  <h3 id="overview-revenue">R$ 0,00</h3>
+                  <p class="growth-text up" id="overview-revenue-growth"><i data-lucide="trending-up"></i> Calculado do faturamento real</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -314,8 +314,8 @@
                   <i data-lucide="bike" class="text-blue"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>152 / 180</h3>
-                  <p class="growth-text neutral"><span class="pulse-dot inline"></span> Alta demanda no momento</p>
+                  <h3 id="overview-active-riders">0 / 0</h3>
+                  <p class="growth-text neutral"><span class="pulse-dot inline"></span> Monitoramento em tempo real</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -324,8 +324,8 @@
                   <i data-lucide="check-circle" class="text-green"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>1.842</h3>
-                  <p class="growth-text up"><i data-lucide="trending-up"></i> +4.2% vs ontem</p>
+                  <h3 id="overview-completed-today">0</h3>
+                  <p class="growth-text up" id="overview-completed-growth"><i data-lucide="trending-up"></i> Sincronizado hoje</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -334,8 +334,8 @@
                   <i data-lucide="credit-card" class="text-purple"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>R$ 14,80</h3>
-                  <p class="growth-text down"><i data-lucide="trending-down"></i> -1.5% devido a rota reduzida</p>
+                  <h3 id="overview-average-ticket">R$ 0,00</h3>
+                  <p class="growth-text neutral">Baseado em entregas concluídas</p>
                 </div>
               </div>
             </div>
@@ -362,59 +362,8 @@
                   <a href="#" class="view-all-link">Ver todos</a>
                 </div>
                 <div class="card-body">
-                  <div class="list-container">
-                    <div class="list-item">
-                      <div class="item-info">
-                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
-                        <div>
-                          <h4>Burger do Chef & Cia</h4>
-                          <p class="text-muted">142 entregas completadas essa semana</p>
-                        </div>
-                      </div>
-                      <div class="item-action text-right">
-                        <strong>R$ 2.100,50</strong>
-                        <span class="badge badge-success mt-1">Ótimo</span>
-                      </div>
-                    </div>
-                    <div class="list-item">
-                      <div class="item-info">
-                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
-                        <div>
-                          <h4>Pizzaria Bella Italia</h4>
-                          <p class="text-muted">98 entregas completadas essa semana</p>
-                        </div>
-                      </div>
-                      <div class="item-action text-right">
-                        <strong>R$ 1.640,00</strong>
-                        <span class="badge badge-success mt-1">Ativo</span>
-                      </div>
-                    </div>
-                    <div class="list-item">
-                      <div class="item-info">
-                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
-                        <div>
-                          <h4>Subway Grill Express</h4>
-                          <p class="text-muted">87 entregas completadas essa semana</p>
-                        </div>
-                      </div>
-                      <div class="item-action text-right">
-                        <strong>R$ 1.280,00</strong>
-                        <span class="badge badge-success mt-1">Ativo</span>
-                      </div>
-                    </div>
-                    <div class="list-item">
-                      <div class="item-info">
-                        <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
-                        <div>
-                          <h4>Cantina di Lucca</h4>
-                          <p class="text-muted">45 entregas completadas essa semana</p>
-                        </div>
-                      </div>
-                      <div class="item-action text-right">
-                        <strong>R$ 670,20</strong>
-                        <span class="badge badge-warning mt-1">Moderado</span>
-                      </div>
-                    </div>
+                  <div class="list-container" id="overview-commercial-clients-list">
+                    <!-- Loaded dynamically via JS -->
                   </div>
                 </div>
               </div>
@@ -862,8 +811,8 @@
                   <i data-lucide="shopping-bag" class="text-yellow"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3 id="client-total-orders">284</h3>
-                  <p class="growth-text up"><i data-lucide="trending-up"></i> +8% este mês</p>
+                  <h3 id="client-total-orders">0</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> Entregas reais</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -872,8 +821,8 @@
                   <i data-lucide="clock" class="text-blue"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>16.4 min</h3>
-                  <p class="growth-text up"><i data-lucide="trending-up"></i> 1.2 min mais rápido que a média geral</p>
+                  <h3 id="client-avg-time">16.4 min</h3>
+                  <p class="growth-text up"><i data-lucide="trending-up"></i> Tempo de tráfego real</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -882,8 +831,8 @@
                   <i data-lucide="dollar-sign" class="text-green"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3 id="client-total-cost">R$ 4.203,20</h3>
-                  <p class="text-muted">Cobrado quinzenalmente no boleto</p>
+                  <h3 id="client-total-cost">R$ 0,00</h3>
+                  <p class="text-muted">Cobrado no boleto</p>
                 </div>
               </div>
               <div class="metric-card">
@@ -892,7 +841,7 @@
                   <i data-lucide="star" class="text-purple"></i>
                 </div>
                 <div class="metric-card-body">
-                  <h3>4.92 / 5.0</h3>
+                  <h3 id="client-avg-rating">5.00 / 5.0</h3>
                   <p class="growth-text up"><i data-lucide="heart" class="inline-icon"></i> Feedback excelente</p>
                 </div>
               </div>

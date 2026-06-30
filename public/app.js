@@ -553,6 +553,9 @@ async function switchDashboardTab(targetTab) {
 
   // Trigger specific tab initializers (like charts render)
   if (targetTab === 'owner-overview') {
+    await fetchFleet();
+    await fetchClientHistory();
+    updateOwnerOverviewMetrics();
     initOwnerOverviewChart();
   } else if (targetTab === 'owner-fleet-map') {
     await fetchFleet();
@@ -575,6 +578,8 @@ async function switchDashboardTab(targetTab) {
   } else if (targetTab === 'owner-consumables') {
     initOwnerConsumables();
   } else if (targetTab === 'client-overview') {
+    await fetchClientHistory();
+    updateClientOverviewMetrics();
     initClientOverviewChart();
   } else if (targetTab === 'client-history') {
     await fetchClientHistory();
@@ -1554,6 +1559,89 @@ function runLogisticsSimulation(order) {
 /* ================= CHART INITIALIZATION ================= */
 
 // Chart 1: Owner Overview deliveries
+function updateOwnerOverviewMetrics() {
+  const completed = mockData.clientHistory.filter(o => o.status === 'Entregue');
+  const totalRevenue = completed.reduce((sum, o) => sum + parseFloat(o.price || 0), 0);
+  
+  const totalRiders = mockData.fleet.length;
+  const activeRiders = mockData.fleet.filter(r => r.status !== 'Em Descanso').length;
+
+  const completedToday = completed.filter(o => o.date.includes('Hoje')).length;
+  const avgTicket = completed.length > 0 ? (totalRevenue / completed.length) : 0;
+
+  const formatVal = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const revEl = document.getElementById('overview-revenue');
+  const activeEl = document.getElementById('overview-active-riders');
+  const todayEl = document.getElementById('overview-completed-today');
+  const avgEl = document.getElementById('overview-average-ticket');
+
+  if (revEl) revEl.innerText = formatVal(totalRevenue);
+  if (activeEl) activeEl.innerText = `${activeRiders} / ${totalRiders}`;
+  if (todayEl) todayEl.innerText = completedToday;
+  if (avgEl) avgEl.innerText = formatVal(avgTicket);
+
+  const listContainer = document.getElementById('overview-commercial-clients-list');
+  if (listContainer) {
+    if (completed.length > 0) {
+      listContainer.innerHTML = `
+        <div class="list-item">
+          <div class="item-info">
+            <div class="item-icon-avatar bg-yellow"><i data-lucide="store" class="text-black"></i></div>
+            <div>
+              <h4>Burger do Chef & Cia</h4>
+              <p class="text-muted">${completed.length} entregas completadas essa semana</p>
+            </div>
+          </div>
+          <div class="item-action text-right">
+            <strong>${formatVal(totalRevenue)}</strong>
+            <span class="badge badge-success mt-1">Ativo</span>
+          </div>
+        </div>
+      `;
+    } else {
+      listContainer.innerHTML = `
+        <p style="margin:0; text-align:center; padding:30px 0; color:var(--color-text-muted); font-style:italic; font-size:0.85rem;">Nenhum comércio ativo no momento.</p>
+      `;
+    }
+    lucide.createIcons();
+  }
+}
+
+function getWeeklyDeliveriesCount() {
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  const today = new Date();
+  
+  const day = today.getDay();
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(today.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+
+  mockData.clientHistory.forEach(item => {
+    let itemDate = null;
+    if (item.date.includes('Hoje')) {
+      itemDate = new Date();
+    } else {
+      const match = item.date.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (match) {
+        itemDate = new Date(match[3], match[2] - 1, match[1]);
+      }
+    }
+
+    if (itemDate && item.status === 'Entregue') {
+      itemDate.setHours(0, 0, 0, 0);
+      const timeDiff = itemDate.getTime() - monday.getTime();
+      const dayIndex = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      if (dayIndex >= 0 && dayIndex < 7) {
+        counts[dayIndex]++;
+      }
+    }
+  });
+
+  return counts;
+}
+
+// Chart 1: Owner Overview deliveries
 function initOwnerOverviewChart() {
   const ctx = document.getElementById('ownerOverviewChart');
   if (!ctx) return;
@@ -1562,13 +1650,15 @@ function initOwnerOverviewChart() {
     ownerOverviewChart.destroy();
   }
 
+  const chartData = getWeeklyDeliveriesCount();
+
   ownerOverviewChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
       datasets: [{
         label: 'Entregas Concluídas',
-        data: [1200, 1420, 1310, 1580, 1920, 1842, 1100],
+        data: chartData,
         borderColor: '#eb2690',
         backgroundColor: 'rgba(235, 38, 144, 0.1)',
         borderWidth: 3,
@@ -1585,7 +1675,7 @@ function initOwnerOverviewChart() {
       scales: {
         y: {
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#8e8e9f' }
+          ticks: { color: '#8e8e9f', stepSize: 1 }
         },
         x: {
           grid: { color: 'rgba(255,255,255,0.05)' },
@@ -1605,13 +1695,20 @@ function initOwnerFinancialChart() {
     ownerFinancialChart.destroy();
   }
 
+  const completed = mockData.clientHistory.filter(o => o.status === 'Entregue');
+  const totalRevenue = completed.reduce((sum, o) => sum + parseFloat(o.price || 0), 0);
+  const commission = totalRevenue * 0.10;
+  const repasse = totalRevenue * 0.90;
+
+  const chartValues = totalRevenue > 0 ? [repasse, commission] : [0, 0];
+
   ownerFinancialChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Repasse Motoboys', 'Comissão Speed', 'Seguros / Taxas'],
+      labels: ['Repasse Motoboys', 'Comissão Speed'],
       datasets: [{
-        data: [71, 24, 5],
-        backgroundColor: ['#eb2690', '#01afec', '#10b981'],
+        data: chartValues,
+        backgroundColor: ['#eb2690', '#01afec'],
         borderWidth: 0
       }]
     },
@@ -1628,6 +1725,24 @@ function initOwnerFinancialChart() {
   });
 }
 
+function updateClientOverviewMetrics() {
+  const completed = mockData.clientHistory.filter(o => o.status === 'Entregue');
+  const totalOrders = mockData.clientHistory.length;
+  const totalCost = mockData.clientHistory.reduce((sum, o) => sum + parseFloat(o.price || 0), 0);
+
+  const formatVal = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const totalEl = document.getElementById('client-total-orders');
+  const costEl = document.getElementById('client-total-cost');
+  const timeEl = document.getElementById('client-avg-time');
+  const ratingEl = document.getElementById('client-avg-rating');
+
+  if (totalEl) totalEl.innerText = totalOrders;
+  if (costEl) costEl.innerText = formatVal(totalCost);
+  if (timeEl) timeEl.innerText = totalOrders > 0 ? "14.5 min" : "0.0 min";
+  if (ratingEl) ratingEl.innerText = totalOrders > 0 ? "5.00 / 5.0" : "0.00 / 5.0";
+}
+
 // Chart 3: Client Snack Bar performance comparison
 function initClientOverviewChart() {
   const ctx = document.getElementById('clientOverviewChart');
@@ -1637,6 +1752,10 @@ function initClientOverviewChart() {
     clientOverviewChart.destroy();
   }
 
+  const weeklyCounts = getWeeklyDeliveriesCount();
+  const estimatedTimes = weeklyCounts.map(count => count > 0 ? 18 : 0);
+  const realTimes = weeklyCounts.map(count => count > 0 ? 16 : 0);
+
   clientOverviewChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1644,13 +1763,13 @@ function initClientOverviewChart() {
       datasets: [
         {
           label: 'Estimado (min)',
-          data: [18, 18, 18, 20, 22, 22, 20],
+          data: estimatedTimes,
           backgroundColor: 'rgba(255,255,255,0.1)',
           borderRadius: 4
         },
         {
           label: 'Tempo Real (min)',
-          data: [16, 15, 17, 19, 21, 20, 18],
+          data: realTimes,
           backgroundColor: '#eb2690',
           borderRadius: 4
         }
@@ -1667,7 +1786,7 @@ function initClientOverviewChart() {
       scales: {
         y: {
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#8e8e9f' }
+          ticks: { color: '#8e8e9f', stepSize: 5 }
         },
         x: {
           grid: { color: 'rgba(255,255,255,0.05)' },
@@ -1759,26 +1878,15 @@ function renderMapMarkers(centerCoords) {
     [-0.009, 0.005]
   ];
 
-  const demoRidersLocations = [
-    { name: 'Carlos Oliveira', vehicle: 'Honda CG 160 Fan', plate: 'ABC-1234', status: 'A caminho da coleta', statusColor: '#eb2690', offset: offsets[0] },
-    { name: 'Marcos Santos', vehicle: 'Yamaha YZF-R3', plate: 'XYZ-9876', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[1] },
-    { name: 'Julia Costa', vehicle: 'Shineray XY 50', plate: 'MNO-5432', status: 'Disponível', statusColor: '#01afec', offset: offsets[2] },
-    { name: 'Roberto Lima', vehicle: 'Honda Biz 125', plate: 'PQR-8765', status: 'Em Descanso', statusColor: '#8e8e9f', offset: offsets[3] },
-    { name: 'Aline Dias', vehicle: 'Voltz EVS (Elétrica)', plate: 'ELE-2026', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[4] },
-    { name: 'Lucas Souza', vehicle: 'Yamaha Fazer 250', plate: 'DEF-4321', status: 'Disponível', statusColor: '#01afec', offset: offsets[5] }
-  ];
-
-  const ridersLocations = mockData.fleet.length
-    ? mockData.fleet.map((rider, index) => ({
-        id: rider.id,
-        name: rider.name,
-        vehicle: rider.vehicle,
-        plate: rider.plate,
-        status: rider.status,
-        statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#eb2690' : '#01afec'),
-        offset: offsets[index % offsets.length]
-      }))
-    : demoRidersLocations;
+  const ridersLocations = mockData.fleet.map((rider, index) => ({
+    id: rider.id,
+    name: rider.name,
+    vehicle: rider.vehicle,
+    plate: rider.plate,
+    status: rider.status,
+    statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#eb2690' : '#01afec'),
+    offset: offsets[index % offsets.length]
+  }));
 
   ridersLocations.forEach(rider => {
     const mockRider = mockData.fleet.find(r => r.name === rider.name);
