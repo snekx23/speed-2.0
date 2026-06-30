@@ -82,6 +82,9 @@ function loadGoogleMapsAPI(callback) {
       getLatLng() {
         return this.latlng;
       }
+      getPosition() {
+        return this.latlng;
+      }
     }
     window.CustomHTMLMapMarker = CustomHTMLMapMarker;
     if (callback) callback();
