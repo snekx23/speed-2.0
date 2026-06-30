@@ -16,13 +16,13 @@
   --color-text-muted: #8e8e9f;
   --color-text-dark: #09090b;
 
-  --primary: #ff00aa;
-  --primary-hover: #d6008f;
-  --primary-glow: rgba(255, 0, 170, 0.15);
+  --primary: #eb2690;
+  --primary-hover: #c8207a;
+  --primary-glow: rgba(235, 38, 144, 0.15);
   
-  --accent-cyan: #00aeef;
-  --accent-cyan-hover: #0096ce;
-  --accent-cyan-glow: rgba(0, 174, 239, 0.15);
+  --accent-cyan: #01afec;
+  --accent-cyan-hover: #0094c9;
+  --accent-cyan-glow: rgba(1, 175, 236, 0.15);
   
   --secondary: #272730;
   --secondary-hover: #353542;
@@ -31,18 +31,18 @@
   --success-glow: rgba(16, 185, 129, 0.15);
   --error: #ef4444;
   --warning: #f59e0b;
-  --info: #00aeef;
+  --info: #01afec;
 
   /* Borders & Shadows */
   --border-color: #272732;
-  --border-color-focus: #ff00aa;
+  --border-color-focus: #eb2690;
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 20px;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 20px rgba(255, 0, 170, 0.2);
+  --shadow-glow: 0 0 20px rgba(235, 38, 144, 0.2);
 
   /* Transitions */
   --transition-fast: 0.2s ease;
@@ -242,8 +242,8 @@ svg {
 
 /* ================= LANDING PAGE & NAVBAR ================= */
 #view-landing {
-  background: radial-gradient(circle at top right, rgba(255, 0, 170, 0.08), transparent 60%),
-              radial-gradient(circle at bottom left, rgba(0, 174, 239, 0.08), transparent 50%),
+  background: radial-gradient(circle at top right, rgba(235, 38, 144, 0.08), transparent 60%),
+              radial-gradient(circle at bottom left, rgba(1, 175, 236, 0.08), transparent 50%),
               var(--bg-app);
 }
 
@@ -400,7 +400,7 @@ svg {
 }
 
 .login-card:hover {
-  border-color: rgba(255, 0, 170, 0.3);
+  border-color: rgba(235, 38, 144, 0.3);
 }
 
 .login-card::before {
@@ -1113,7 +1113,7 @@ select {
 .item-icon-avatar.bg-yellow {
   background-color: var(--primary-glow);
   color: var(--primary);
-  border: 1px solid rgba(255, 0, 170, 0.2);
+  border: 1px solid rgba(235, 38, 144, 0.2);
 }
 
 .item-info h4 {
@@ -1546,8 +1546,8 @@ select {
 .perf-bar-fill.bg-blue { background-color: var(--info); }
 
 .promo-box {
-  background-color: rgba(255, 0, 170, 0.03);
-  border: 1px solid rgba(255, 0, 170, 0.1);
+  background-color: rgba(235, 38, 144, 0.03);
+  border: 1px solid rgba(235, 38, 144, 0.1);
   border-radius: var(--border-radius-md);
   padding: 16px;
 }
@@ -1910,7 +1910,7 @@ select {
 
 .pending-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 0, 170, 0.3);
+  border-color: rgba(235, 38, 144, 0.3);
   box-shadow: var(--shadow-md);
 }
 
@@ -2038,7 +2038,7 @@ select {
 
 .active-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(0, 174, 239, 0.3);
+  border-color: rgba(1, 175, 236, 0.3);
   box-shadow: var(--shadow-md);
 }
 
@@ -2138,7 +2138,7 @@ select {
 }
 
 .notif-item.unread {
-  background-color: rgba(255, 0, 170, 0.04);
+  background-color: rgba(235, 38, 144, 0.04);
 }
 
 .notif-item:hover {
@@ -2277,7 +2277,7 @@ select {
 }
 
 .clickable-row:hover {
-  background-color: rgba(255, 0, 170, 0.05);
+  background-color: rgba(235, 38, 144, 0.05);
 }
 
 .rider-action-grid {
@@ -2327,7 +2327,7 @@ textarea:focus {
 
 .profile-preview-panel {
   background:
-    radial-gradient(circle at top, rgba(255, 0, 170, 0.16), transparent 58%),
+    radial-gradient(circle at top, rgba(235, 38, 144, 0.16), transparent 58%),
     var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   padding: 28px 22px;
@@ -2343,8 +2343,8 @@ textarea:focus {
   height: 112px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid rgba(255, 0, 170, 0.55);
-  box-shadow: 0 0 0 8px rgba(255, 0, 170, 0.08);
+  border: 3px solid rgba(235, 38, 144, 0.55);
+  box-shadow: 0 0 0 8px rgba(235, 38, 144, 0.08);
   background-color: var(--bg-input);
 }
 
@@ -2404,7 +2404,7 @@ textarea:focus {
 
 .profile-fields-panel .input-wrapper input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 0, 170, 0.12);
+  box-shadow: 0 0 0 3px rgba(235, 38, 144, 0.12);
 }
 
 @media (max-width: 720px) {
@@ -2520,7 +2520,7 @@ textarea:focus {
   text-align: left;
 }
 .autocomplete-item:hover {
-  background: rgba(255, 0, 170, 0.1);
+  background: rgba(235, 38, 144, 0.1);
   color: #ffffff;
 }
 .autocomplete-item:last-child {

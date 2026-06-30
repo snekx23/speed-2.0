@@ -171,13 +171,16 @@
             <button class="nav-item" data-tab="owner-rider-payments" onclick="switchDashboardTab('owner-rider-payments')">
               <i data-lucide="receipt"></i> Repasse Semanal
             </button>
+            <button class="nav-item" data-tab="owner-consumables" onclick="switchDashboardTab('owner-consumables')">
+              <i data-lucide="package"></i> Consumíveis
+            </button>
             <button class="nav-item" data-tab="owner-support" style="position: relative;" onclick="switchDashboardTab('owner-support')">
               <i data-lucide="message-square"></i> Suporte Clientes
-              <span class="pulse-dot hidden" id="admin-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+              <span class="pulse-dot hidden" id="admin-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #eb2690; box-shadow: 0 0 8px #eb2690;"></span>
             </button>
             <button class="nav-item" data-tab="owner-support-riders" style="position: relative;" onclick="switchDashboardTab('owner-support-riders')">
               <i data-lucide="bike"></i> Suporte Motoboys
-              <span class="pulse-dot hidden" id="admin-rider-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+              <span class="pulse-dot hidden" id="admin-rider-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #eb2690; box-shadow: 0 0 8px #eb2690;"></span>
             </button>
             <button class="nav-item" data-tab="owner-settings" onclick="switchDashboardTab('owner-settings')">
               <i data-lucide="settings"></i> Configurações
@@ -202,7 +205,7 @@
             </button>
             <button class="nav-item" data-tab="client-support" style="position: relative;" onclick="switchDashboardTab('client-support')">
               <i data-lucide="message-square"></i> Suporte Chat
-              <span class="pulse-dot hidden" id="client-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #ff00aa; box-shadow: 0 0 8px #ff00aa;"></span>
+              <span class="pulse-dot hidden" id="client-chat-dot" style="position: absolute; top: 12px; right: 16px; width: 8px; height: 8px; border-radius: 50%; background: #eb2690; box-shadow: 0 0 8px #eb2690;"></span>
             </button>
           </div>
 
@@ -562,9 +565,10 @@
                       <tr>
                         <th>Motoboy</th>
                         <th>Teles Concluídas</th>
-                        <th>Faturamento Bruto</th>
+                        <th>Saldo Bruto</th>
                         <th>Taxa Speed (10%)</th>
-                        <th>Valor Líquido (A Pagar)</th>
+                        <th>Descontos</th>
+                        <th>Saldo Líquido</th>
                         <th>Média por Tele</th>
                         <th>Status Pagamento</th>
                       </tr>
@@ -670,6 +674,182 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Vales & Consumíveis Tab -->
+          <div id="tab-owner-consumables" class="dashboard-tab-content">
+            <!-- KPIs Header Grid -->
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Total Consumíveis</span>
+                  <i data-lucide="package" class="text-pink" style="color: var(--primary);"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="lbl-total-consumables">R$ 0,00</h3>
+                  <p class="text-muted">Total lançado como consumível</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Total Vales</span>
+                  <i data-lucide="fuel" class="text-blue" style="color: var(--accent-cyan);"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="lbl-total-vouchers">R$ 0,00</h3>
+                  <p class="text-muted">Total lançado como vale</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Total Geral</span>
+                  <i data-lucide="wallet" class="text-green" style="color: var(--success);"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="lbl-total-general">R$ 0,00</h3>
+                  <p class="text-muted">Descontos ativos do período</p>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span>Qtd de Lançamentos</span>
+                  <i data-lucide="list-checks" class="text-yellow" style="color: var(--warning);"></i>
+                </div>
+                <div class="metric-card-body">
+                  <h3 id="lbl-count-launches">0</h3>
+                  <p class="text-muted">Registros ativos no período</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main Layout Grid -->
+            <div class="grid grid-2-1" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
+              
+              <!-- Left Column: Filter & Launch List -->
+              <div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                  <h3 style="font-family: var(--font-display); font-weight: 700; font-size: 1.25rem;">Histórico de Lançamentos</h3>
+                </div>
+
+                <!-- Filters Sub-panel -->
+                <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: var(--bg-sidebar); padding: 16px; border-radius: var(--border-radius-md); border: 1px solid var(--border-color);">
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600;">Filtrar Motoboy</label>
+                    <select id="filter-launch-rider" onchange="filterLaunches()" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.8rem; outline: none; width: 100%;">
+                      <option value="all">Todos os Motoboys</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600;">Filtrar Categoria</label>
+                    <select id="filter-launch-category" onchange="filterLaunches()" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.8rem; outline: none; width: 100%;">
+                      <option value="all">Todas</option>
+                      <option value="Vale">Vale</option>
+                      <option value="Consumível">Consumível</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600;">Data Inicial</label>
+                    <input type="date" id="filter-launch-start-date" onchange="filterLaunches()" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.8rem; outline: none; width: 100%; color-scheme: dark;">
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600;">Data Final</label>
+                    <input type="date" id="filter-launch-end-date" onchange="filterLaunches()" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.8rem; outline: none; width: 100%; color-scheme: dark;">
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 4px; grid-column: span 2;">
+                    <label style="font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600;">Busca Rápida</label>
+                    <input type="text" id="filter-launch-search" oninput="filterLaunches()" placeholder="Buscar por item, obs..." style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.8rem; outline: none; width: 100%;">
+                  </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                  <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Motoboy</th>
+                        <th>Categoria</th>
+                        <th>Item</th>
+                        <th>Qtd</th>
+                        <th>Valor Total</th>
+                        <th>Observação</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="launches-table-body">
+                      <!-- Dynamically filled -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Right Column: Launch Form -->
+              <div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; height: fit-content;">
+                <h3 style="font-family: var(--font-display); font-weight: 700; font-size: 1.25rem;">Novo Lançamento</h3>
+                <p class="text-muted text-xs" style="margin-top: -8px;">Lance vales ou consumíveis para débito automático.</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 8px;">
+                  
+                  <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Motoboy</label>
+                    <select id="form-launch-rider" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                      <!-- Dynamically populated with riders -->
+                    </select>
+                  </div>
+
+                  <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Categoria</label>
+                    <select id="form-launch-category" onchange="onFormCategoryChange()" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                      <option value="Consumível">Consumível</option>
+                      <option value="Vale">Vale</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted); display: flex; justify-content: space-between; align-items: center;">
+                      <span>Item</span>
+                      <button onclick="promptCreateNewItem()" style="background: none; border: none; color: var(--primary); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 0; outline: none;">+ Adicionar novo item</button>
+                    </label>
+                    <select id="form-launch-item" onchange="onFormItemChange()" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                      <!-- Dynamically populated with items based on category -->
+                    </select>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                      <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Quantidade</label>
+                      <input type="number" id="form-launch-qty" value="1" min="1" oninput="updateLaunchTotalEstimate()" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                    </div>
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                      <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Valor Unitário (R$)</label>
+                      <input type="number" id="form-launch-value" value="0.00" min="0" step="0.01" oninput="updateLaunchTotalEstimate()" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                    </div>
+                  </div>
+
+                  <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8rem; color: var(--color-text-muted); font-weight: 600;">Total Lançamento:</span>
+                    <strong id="form-launch-total-label" style="font-size: 1.1rem; color: var(--primary); font-family: var(--font-display);">R$ 0,00</strong>
+                  </div>
+
+                  <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Data do Lançamento</label>
+                    <input type="date" id="form-launch-date" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%; color-scheme: dark;">
+                  </div>
+
+                  <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-muted);">Observação</label>
+                    <input type="text" id="form-launch-notes" placeholder="Ex: Abastecimento Posto Central" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; font-size: 0.88rem; outline: none; width: 100%;">
+                  </div>
+
+                  <button class="btn btn-primary" onclick="submitNewLaunch()" style="background: var(--primary); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.95rem; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+                    <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i> Efetuar Lançamento
+                  </button>
+
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -1108,7 +1288,7 @@
                 <!-- Card: Rider App (App do Motoboy PWA) -->
                 <div class="card" style="padding: 28px; border: 1px solid var(--border-color); border-top: 4px solid var(--accent-cyan); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; transition: all var(--transition-fast);">
                   <div>
-                    <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--accent-cyan-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(0, 174, 239, 0.2);">
+                    <div style="width: 48px; height: 48px; border-radius: var(--border-radius-md); background: var(--accent-cyan-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(1, 175, 236, 0.2);">
                       <i data-lucide="bike" style="width: 24px; height: 24px; color: var(--accent-cyan);"></i>
                     </div>
                     <h3 style="font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--color-text);">App do Entregador</h3>
@@ -1293,9 +1473,9 @@
                       <div class="accordion-header-summary" style="display: flex; gap: 16px; margin-top: 12px; font-size: 0.78rem; color: var(--color-text-muted); flex-wrap: wrap;">
                         <span>Motoboys cadastrados: <strong id="stats-total-riders" style="color: var(--color-text);">0</strong></span>
                         <span style="color: rgba(255,255,255,0.08);">|</span>
-                        <span>Seguindo a regra de 3 km: <strong id="stats-rule-riders" style="color: #00aeef;">0</strong></span>
+                        <span>Seguindo a regra de 3 km: <strong id="stats-rule-riders" style="color: #01afec;">0</strong></span>
                         <span style="color: rgba(255,255,255,0.08);">|</span>
-                        <span>Exceções liberadas: <strong id="stats-bypass-riders" style="color: #ff00aa;">0</strong></span>
+                        <span>Exceções liberadas: <strong id="stats-bypass-riders" style="color: #eb2690;">0</strong></span>
                       </div>
                     </div>
                     <i data-lucide="chevron-down" class="accordion-chevron" style="transition: transform 0.25s ease; color: var(--color-text-muted); width: 20px; height: 20px; flex-shrink: 0;"></i>
@@ -1339,9 +1519,9 @@
                       <div class="accordion-header-summary" style="display: flex; gap: 16px; margin-top: 12px; font-size: 0.78rem; color: var(--color-text-muted); flex-wrap: wrap;">
                         <span>Motoboys cadastrados: <strong id="stats-limit-total-riders" style="color: var(--color-text);">0</strong></span>
                         <span style="color: rgba(255,255,255,0.08);">|</span>
-                        <span>No limite padrão (1): <strong id="stats-limit-default-riders" style="color: #00aeef;">0</strong></span>
+                        <span>No limite padrão (1): <strong id="stats-limit-default-riders" style="color: #01afec;">0</strong></span>
                         <span style="color: rgba(255,255,255,0.08);">|</span>
-                        <span>Limite personalizado: <strong id="stats-limit-custom-riders" style="color: #ff00aa;">0</strong></span>
+                        <span>Limite personalizado: <strong id="stats-limit-custom-riders" style="color: #eb2690;">0</strong></span>
                       </div>
                     </div>
                     <i data-lucide="chevron-down" class="accordion-chevron" style="transition: transform 0.25s ease; color: var(--color-text-muted); width: 20px; height: 20px; flex-shrink: 0;"></i>
@@ -1373,8 +1553,8 @@
                       </div>
 
                       <!-- Info box: Como funciona -->
-                      <div class="info-box" style="padding: 16px; background: rgba(0, 174, 239, 0.05); border: 1px solid rgba(0, 174, 239, 0.2); border-radius: var(--border-radius-sm); display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; align-items: center; gap: 8px; color: #00aeef; font-weight: 600; font-size: 0.9rem;">
+                      <div class="info-box" style="padding: 16px; background: rgba(1, 175, 236, 0.05); border: 1px solid rgba(1, 175, 236, 0.2); border-radius: var(--border-radius-sm); display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #01afec; font-weight: 600; font-size: 0.9rem;">
                           <i data-lucide="info" style="width: 18px; height: 18px;"></i>
                           <span>Como funciona</span>
                         </div>
@@ -1753,6 +1933,8 @@
       </div>
     </div>
   </div>
+
+  <!-- Modals ended -->
 
   <script src="app.js"></script>
 </body>

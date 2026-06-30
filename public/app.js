@@ -476,6 +476,8 @@ async function switchDashboardTab(targetTab) {
     await fetchFleet();
     renderRiderSettings();
     renderRiderLimits();
+  } else if (targetTab === 'owner-consumables') {
+    initOwnerConsumables();
   } else if (targetTab === 'client-overview') {
     initClientOverviewChart();
   } else if (targetTab === 'client-history') {
@@ -765,10 +767,27 @@ function renderRiderPayments() {
     }
   }
 
+  // Load launches for discounts
+  let localLaunches = localStorage.getItem('speed_launches');
+  let currentLaunches = localLaunches ? JSON.parse(localLaunches) : [];
+
+  const startInput = document.getElementById('rider-payment-start-date');
+  const endInput = document.getElementById('rider-payment-end-date');
+  const startVal = startInput ? startInput.value : '';
+  const endVal = endInput ? endInput.value : '';
+
   tbody.innerHTML = rows.map(row => {
     const gross = row.total;
-    const discount = gross * 0.10;
-    const net = gross * 0.90;
+    const speedTax = gross * 0.10;
+    
+    // Filter active discounts for this rider in the current period
+    const riderLaunches = currentLaunches.filter(l => 
+      !l.deleted && 
+      l.riderName === row.rider.name && 
+      isLaunchInFilterPeriod(l, startVal, endVal)
+    );
+    const discounts = riderLaunches.reduce((acc, l) => acc + l.total, 0);
+    const net = gross - speedTax - discounts;
     const avg = row.count ? gross / row.count : 0;
     
     return `
@@ -779,7 +798,8 @@ function renderRiderPayments() {
         </td>
         <td>${row.count}</td>
         <td>${formatMoneyBR(gross)}</td>
-        <td class="text-danger">- ${formatMoneyBR(discount)}</td>
+        <td class="text-danger">- ${formatMoneyBR(speedTax)}</td>
+        <td class="text-danger">${discounts > 0 ? `- ${formatMoneyBR(discounts)}` : '—'}</td>
         <td><strong class="text-yellow">${formatMoneyBR(net)}</strong></td>
         <td>${formatMoneyBR(avg)}</td>
         <td><span class="status-indicator ${net > 0 ? 'status-progress' : 'status-neutral'}">${net > 0 ? 'Programado para quinta' : 'Sem valor'}</span></td>
@@ -1416,8 +1436,8 @@ function initOwnerOverviewChart() {
       datasets: [{
         label: 'Entregas Concluídas',
         data: [1200, 1420, 1310, 1580, 1920, 1842, 1100],
-        borderColor: '#ff00aa',
-        backgroundColor: 'rgba(255, 0, 170, 0.1)',
+        borderColor: '#eb2690',
+        backgroundColor: 'rgba(235, 38, 144, 0.1)',
         borderWidth: 3,
         fill: true,
         tension: 0.4
@@ -1458,7 +1478,7 @@ function initOwnerFinancialChart() {
       labels: ['Repasse Motoboys', 'Comissão Speed', 'Seguros / Taxas'],
       datasets: [{
         data: [71, 24, 5],
-        backgroundColor: ['#ff00aa', '#00aeef', '#10b981'],
+        backgroundColor: ['#eb2690', '#01afec', '#10b981'],
         borderWidth: 0
       }]
     },
@@ -1498,7 +1518,7 @@ function initClientOverviewChart() {
         {
           label: 'Tempo Real (min)',
           data: [16, 15, 17, 19, 21, 20, 18],
-          backgroundColor: '#ff00aa',
+          backgroundColor: '#eb2690',
           borderRadius: 4
         }
       ]
@@ -1612,12 +1632,12 @@ function renderMapMarkers(centerCoords) {
 
   // Fallback demo riders when Supabase does not return fleet rows.
   const demoRidersLocations = [
-    { name: 'Carlos Oliveira', vehicle: 'Honda CG 160 Fan', plate: 'ABC-1234', status: 'A caminho da coleta', statusColor: '#ff00aa', offset: offsets[0] },
-    { name: 'Marcos Santos', vehicle: 'Yamaha YZF-R3', plate: 'XYZ-9876', status: 'Em rota de entrega', statusColor: '#ff00aa', offset: offsets[1] },
-    { name: 'Julia Costa', vehicle: 'Shineray XY 50', plate: 'MNO-5432', status: 'Disponível', statusColor: '#00aeef', offset: offsets[2] },
+    { name: 'Carlos Oliveira', vehicle: 'Honda CG 160 Fan', plate: 'ABC-1234', status: 'A caminho da coleta', statusColor: '#eb2690', offset: offsets[0] },
+    { name: 'Marcos Santos', vehicle: 'Yamaha YZF-R3', plate: 'XYZ-9876', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[1] },
+    { name: 'Julia Costa', vehicle: 'Shineray XY 50', plate: 'MNO-5432', status: 'Disponível', statusColor: '#01afec', offset: offsets[2] },
     { name: 'Roberto Lima', vehicle: 'Honda Biz 125', plate: 'PQR-8765', status: 'Em Descanso', statusColor: '#8e8e9f', offset: offsets[3] },
-    { name: 'Aline Dias', vehicle: 'Voltz EVS (Elétrica)', plate: 'ELE-2026', status: 'Em rota de entrega', statusColor: '#ff00aa', offset: offsets[4] },
-    { name: 'Lucas Souza', vehicle: 'Yamaha Fazer 250', plate: 'DEF-4321', status: 'Disponível', statusColor: '#00aeef', offset: offsets[5] }
+    { name: 'Aline Dias', vehicle: 'Voltz EVS (Elétrica)', plate: 'ELE-2026', status: 'Em rota de entrega', statusColor: '#eb2690', offset: offsets[4] },
+    { name: 'Lucas Souza', vehicle: 'Yamaha Fazer 250', plate: 'DEF-4321', status: 'Disponível', statusColor: '#01afec', offset: offsets[5] }
   ];
   const ridersLocations = mockData.fleet.length
     ? mockData.fleet.map((rider, index) => ({
@@ -1626,7 +1646,7 @@ function renderMapMarkers(centerCoords) {
         vehicle: rider.vehicle,
         plate: rider.plate,
         status: rider.status,
-        statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#ff00aa' : '#00aeef'),
+        statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#eb2690' : '#01afec'),
         offset: offsets[index % offsets.length]
       }))
     : demoRidersLocations;
@@ -1637,7 +1657,7 @@ function renderMapMarkers(centerCoords) {
     const mockRider = mockData.fleet.find(r => r.name === rider.name);
     const currentStatus = mockRider ? mockRider.status : rider.status;
     const currentStatusColor = mockRider 
-      ? (mockRider.status === 'Em Descanso' ? '#8e8e9f' : (mockRider.statusClass === 'status-progress' ? '#ff00aa' : '#00aeef')) 
+      ? (mockRider.status === 'Em Descanso' ? '#8e8e9f' : (mockRider.statusClass === 'status-progress' ? '#eb2690' : '#01afec')) 
       : rider.statusColor;
 
     const riderCoords = [centerCoords[0] + rider.offset[0], centerCoords[1] + rider.offset[1]];
@@ -1711,7 +1731,7 @@ function renderMapMarkers(centerCoords) {
       <div class="map-popup-card">
         <h4>${escapeHtml(rider.name)}</h4>
         <p>${escapeHtml(rider.vehicle)} • <strong>${escapeHtml(rider.plate)}</strong></p>
-        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#ff00aa' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#ff00aa' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${escapeHtml(currentStatus)}</span>
+        <span class="status-indicator" style="display: inline-block; padding: 2px 8px; font-size: 0.7rem; border-radius: 10px; font-weight: 600; color: ${currentStatusColor === '#8e8e9f' ? 'var(--color-text-muted)' : (currentStatusColor === '#eb2690' ? 'var(--primary)' : 'var(--accent-cyan)')}; background: ${currentStatusColor === '#8e8e9f' ? 'rgba(142, 142, 159, 0.15)' : (currentStatusColor === '#eb2690' ? 'var(--primary-glow)' : 'var(--accent-cyan-glow)')};">${escapeHtml(currentStatus)}</span>
         ${dispatchHtml}
       </div>
     `;
@@ -1933,7 +1953,7 @@ function renderActiveDeliveries() {
     card.innerHTML = `
       <div class="active-card-header">
         <strong style="font-family: var(--font-display);">${order.id}</strong>
-        <span class="badge badge-success" style="background: var(--accent-cyan-glow); color: var(--accent-cyan); border-color: rgba(0, 174, 239, 0.2);">${order.rider}</span>
+        <span class="badge badge-success" style="background: var(--accent-cyan-glow); color: var(--accent-cyan); border-color: rgba(1, 175, 236, 0.2);">${order.rider}</span>
       </div>
       <div class="active-card-body">
         <p><strong>Destino:</strong> ${order.destName}</p>
@@ -2649,7 +2669,7 @@ function createMessageBubble(msg, currentRole) {
   
   // Premium gradients/colors for bubbles
   const bubbleStyle = isMe 
-    ? 'background: linear-gradient(135deg, #00aeef, #0077b5); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(0, 174, 239, 0.25);'
+    ? 'background: linear-gradient(135deg, #01afec, #0077b5); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(1, 175, 236, 0.25);'
     : 'background: #272732; border: 1px solid var(--border-color); color: var(--color-text); border-radius: 16px 16px 16px 2px;';
   
   const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora';
@@ -3362,7 +3382,7 @@ function updateRequestDeliveryDestination(lat, lng, shouldCenter = false) {
   if (!requestDeliveryMap) return;
 
   const destIconHtml = `
-    <div class="custom-map-marker" style="background-color: #ff00aa; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #ff00aa;">
+    <div class="custom-map-marker" style="background-color: #eb2690; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #eb2690;">
     </div>
   `;
   const destIcon = L.divIcon({
@@ -3394,7 +3414,7 @@ function updateRequestDeliveryDestination(lat, lng, shouldCenter = false) {
     requestDeliveryRouteLine.setLatLngs([startCoords, [lat, lng]]);
   } else {
     requestDeliveryRouteLine = L.polyline([startCoords, [lat, lng]], {
-      color: '#ff00aa',
+      color: '#eb2690',
       dashArray: '5, 10',
       weight: 3
     }).addTo(requestDeliveryMap);
@@ -3593,7 +3613,7 @@ function initTrackingMap(pickupLat, pickupLng, destLat, destLng) {
   });
 
   const destIconHtml = `
-    <div class="custom-map-marker" style="background-color: #ff00aa; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #ff00aa;">
+    <div class="custom-map-marker" style="background-color: #eb2690; border-color: #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px #eb2690;">
     </div>
   `;
   const destIcon = L.divIcon({
@@ -3610,7 +3630,7 @@ function initTrackingMap(pickupLat, pickupLng, destLat, destLng) {
   trackingDestMarker.bindPopup('<strong style="color:var(--color-text);">Destino (Cliente)</strong>');
 
   trackingRouteLine = L.polyline([[pickupLat, pickupLng], [destLat, destLng]], {
-    color: '#ff00aa',
+    color: '#eb2690',
     dashArray: '5, 10',
     weight: 3
   }).addTo(trackingMapInstance);
@@ -3625,7 +3645,7 @@ function updateRiderMarker(lat, lng, riderName) {
   if (!trackingMapInstance || isNaN(lat) || isNaN(lng)) return;
 
   const riderIconHtml = `
-    <div style="width:24px;height:24px;background:#00aeef;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(0,174,239,0.7);display:flex;align-items:center;justify-content:center;">
+    <div style="width:24px;height:24px;background:#01afec;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(1,175,236,0.7);display:flex;align-items:center;justify-content:center;">
       <i data-lucide="bike" style="width:12px;height:12px;color:#fff;"></i>
     </div>
   `;
@@ -3724,39 +3744,413 @@ function updateCourierCardUI(rider) {
 }
 
 async function trackActiveOrder(orderId) {
-  if (!supabaseClient) return;
+  if (!supabaseClient)// ================= VALES & CONSUMÍVEIS MODULE =================
 
-  const { data: histData } = await supabaseClient
-    .from('client_history')
-    .select('*')
-    .eq('id', orderId)
-    .maybeSingle();
+// State variables
+let speedLaunches = [];
+let speedItems = [];
 
-  if (histData) {
-    startRealtimeTracking({
-      id: histData.id,
-      pickup_lat: histData.pickup_lat,
-      pickup_lng: histData.pickup_lng,
-      dest_lat: histData.dest_lat,
-      dest_lng: histData.dest_lng,
-      status: histData.status
-    });
+const DEFAULT_ITEMS = [
+  { category: "Consumível", name: "Energético", price: 10.00 },
+  { category: "Consumível", name: "Chocolate", price: 5.00 },
+  { category: "Consumível", name: "Água", price: 3.00 },
+  { category: "Consumível", name: "Lanche", price: 15.00 },
+  { category: "Consumível", name: "Bag Térmica", price: 120.00 },
+  { category: "Consumível", name: "Camiseta Oficial", price: 50.00 },
+  { category: "Vale", name: "Vale Combustível R$ 30", price: 30.00 },
+  { category: "Vale", name: "Vale Combustível R$ 50", price: 50.00 },
+  { category: "Vale", name: "Vale Refeição R$ 20", price: 20.00 }
+];
+
+const DEFAULT_LAUNCHES = [
+  { id: 1, date: "2026-06-28T14:30:00Z", riderName: "Carlos Oliveira", category: "Consumível", itemName: "Bag Térmica", qty: 1, value: 120.00, total: 120.00, notes: "Novo entregador", deleted: false },
+  { id: 2, date: "2026-06-29T09:15:00Z", riderName: "Julia Costa", category: "Vale", itemName: "Vale Combustível R$ 30", qty: 1, value: 30.00, total: 30.00, notes: "Abastecimento diário", deleted: false },
+  { id: 3, date: "2026-06-29T17:45:00Z", riderName: "Marcos Santos", category: "Consumível", itemName: "Lanche", qty: 2, value: 15.00, total: 30.00, notes: "Lanche noturno", deleted: false }
+];
+
+// Initialize data from LocalStorage or fallbacks
+function loadLaunchesData() {
+  const localLaunches = localStorage.getItem('speed_launches');
+  if (localLaunches) {
+    speedLaunches = JSON.parse(localLaunches);
   } else {
-    const { data: pendingData } = await supabaseClient
-      .from('pending_deliveries')
-      .select('*')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    if (pendingData) {
-      startRealtimeTracking(pendingData);
-    }
+    speedLaunches = [...DEFAULT_LAUNCHES];
+    localStorage.setItem('speed_launches', JSON.stringify(speedLaunches));
   }
 
-  const trackingTabBtn = document.getElementById('nav-tracking-tab');
-  if (trackingTabBtn) {
-    trackingTabBtn.disabled = false;
-    trackingTabBtn.querySelector('.pulse-dot').classList.remove('hidden');
+  const localItems = localStorage.getItem('speed_launch_items');
+  if (localItems) {
+    speedItems = JSON.parse(localItems);
+  } else {
+    speedItems = [...DEFAULT_ITEMS];
+    localStorage.setItem('speed_launch_items', JSON.stringify(speedItems));
   }
-  switchDashboardTab('order-tracking');
 }
+
+// Save data back to LocalStorage
+function saveLaunchesData() {
+  localStorage.setItem('speed_launches', JSON.stringify(speedLaunches));
+  localStorage.setItem('speed_launch_items', JSON.stringify(speedItems));
+}
+
+// Module Initializer called on tab switch
+function initOwnerConsumables() {
+  loadLaunchesData();
+  
+  // Populate Rider selects
+  populateRiderSelects();
+  
+  // Set today's date in form datepicker
+  const dateInput = document.getElementById('form-launch-date');
+  if (dateInput) {
+    const today = new Date();
+    dateInput.value = today.toISOString().split('T')[0];
+  }
+  
+  // Trigger category change to populate items select initially
+  onFormCategoryChange();
+  
+  // Render and calculate metrics
+  filterLaunches();
+}
+
+// Populate rider lists in both filter and launch form
+function populateRiderSelects() {
+  const filterSelect = document.getElementById('filter-launch-rider');
+  const formSelect = document.getElementById('form-launch-rider');
+  
+  if (!filterSelect || !formSelect) return;
+  
+  filterSelect.innerHTML = '<option value="all">Todos os Motoboys</option>';
+  formSelect.innerHTML = '';
+  
+  let ridersList = [];
+  if (typeof mockData !== 'undefined' && mockData.fleet && mockData.fleet.length > 0) {
+    ridersList = mockData.fleet.map(r => r.name);
+  } else {
+    ridersList = ["Carlos Oliveira", "Julia Costa", "Marcos Santos", "Aline Dias", "Lucas Souza"];
+  }
+  
+  ridersList.forEach(name => {
+    // For filter select
+    const optFilter = document.createElement('option');
+    optFilter.value = name;
+    optFilter.text = name;
+    filterSelect.appendChild(optFilter);
+    
+    // For form select
+    const optForm = document.createElement('option');
+    optForm.value = name;
+    optForm.text = name;
+    formSelect.appendChild(optForm);
+  });
+}
+
+// Triggered when form category select changes
+function onFormCategoryChange() {
+  const category = document.getElementById('form-launch-category').value;
+  const itemSelect = document.getElementById('form-launch-item');
+  if (!itemSelect) return;
+  
+  itemSelect.innerHTML = '';
+  
+  const filteredItems = speedItems.filter(item => item.category === category);
+  filteredItems.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.name;
+    option.text = `${item.name} (R$ ${item.price.toFixed(2).replace('.', ',')})`;
+    itemSelect.appendChild(option);
+  });
+  
+  // Trigger item change to fill initial price
+  onFormItemChange();
+}
+
+// Triggered when form item select changes
+function onFormItemChange() {
+  const category = document.getElementById('form-launch-category').value;
+  const itemName = document.getElementById('form-launch-item').value;
+  const valueInput = document.getElementById('form-launch-value');
+  if (!valueInput) return;
+  
+  const selectedItem = speedItems.find(i => i.category === category && i.name === itemName);
+  if (selectedItem) {
+    valueInput.value = selectedItem.price.toFixed(2);
+  } else {
+    valueInput.value = "0.00";
+  }
+  
+  updateLaunchTotalEstimate();
+}
+
+// Calculate and update the total value preview card in form
+function updateLaunchTotalEstimate() {
+  const qty = parseInt(document.getElementById('form-launch-qty').value, 10);
+  const val = parseFloat(document.getElementById('form-launch-value').value);
+  const totalLabel = document.getElementById('form-launch-total-label');
+  
+  if (!totalLabel) return;
+  
+  if (isNaN(qty) || qty <= 0 || isNaN(val) || val < 0) {
+    totalLabel.innerText = "R$ 0,00";
+    return;
+  }
+  
+  const total = qty * val;
+  totalLabel.innerText = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+}
+
+// Prompt dialog to register a new item quickly
+function promptCreateNewItem() {
+  const category = document.getElementById('form-launch-category').value;
+  const itemName = prompt(`Cadastrar novo item na categoria [${category}]:\nDigite o nome do produto/serviço:`);
+  
+  if (!itemName || itemName.trim() === '') return;
+  
+  const priceStr = prompt(`Digite o preço padrão de venda para [${itemName.trim()}]:`, "10.00");
+  const price = parseFloat(priceStr);
+  
+  if (isNaN(price) || price < 0) {
+    alert("Preço inválido cadastrado.");
+    return;
+  }
+  
+  // Add item
+  speedItems.push({
+    category,
+    name: itemName.trim(),
+    price
+  });
+  
+  saveLaunchesData();
+  
+  // Refresh items list
+  onFormCategoryChange();
+  
+  // Select the newly added item
+  const itemSelect = document.getElementById('form-launch-item');
+  if (itemSelect) {
+    itemSelect.value = itemName.trim();
+    onFormItemChange();
+  }
+}
+
+// Submit and register a new voucher/consumable launch
+function submitNewLaunch() {
+  const riderName = document.getElementById('form-launch-rider').value;
+  const category = document.getElementById('form-launch-category').value;
+  const itemName = document.getElementById('form-launch-item').value;
+  const qty = parseInt(document.getElementById('form-launch-qty').value, 10);
+  const value = parseFloat(document.getElementById('form-launch-value').value);
+  const dateVal = document.getElementById('form-launch-date').value;
+  const notes = document.getElementById('form-launch-notes').value.trim();
+  
+  if (!riderName) {
+    alert("Selecione um motoboy.");
+    return;
+  }
+  if (!itemName) {
+    alert("Selecione ou cadastre um item primeiro.");
+    return;
+  }
+  if (isNaN(qty) || qty <= 0) {
+    alert("Digite uma quantidade válida.");
+    return;
+  }
+  if (isNaN(value) || value < 0) {
+    alert("Digite um valor válido.");
+    return;
+  }
+  if (!dateVal) {
+    alert("Selecione a data do lançamento.");
+    return;
+  }
+  
+  // Parse launch date with timezone safety
+  const dateParts = dateVal.split('-');
+  const launchDate = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]), 12, 0, 0);
+  
+  const total = qty * value;
+  const nextId = speedLaunches.length > 0 ? Math.max(...speedLaunches.map(l => l.id)) + 1 : 1;
+  
+  speedLaunches.push({
+    id: nextId,
+    date: launchDate.toISOString(),
+    riderName,
+    category,
+    itemName,
+    qty,
+    value,
+    total,
+    notes,
+    deleted: false
+  });
+  
+  saveLaunchesData();
+  
+  // Reset form fields (except motoboy/date for potential batch entries)
+  document.getElementById('form-launch-qty').value = '1';
+  document.getElementById('form-launch-notes').value = '';
+  
+  // Reload view
+  filterLaunches();
+  
+  // Trigger update of weekly payouts table if it's currently rendered
+  renderRiderPayments();
+  
+  alert(`Lançamento efetuado com sucesso!\nDébito de R$ ${total.toFixed(2).replace('.', ',')} adicionado para ${riderName}.`);
+}
+
+// Cancel a launch (Soft delete)
+function cancelLaunch(id) {
+  if (!confirm("Tem deseja cancelar este lançamento? O valor será removido dos débitos do motoboy.")) return;
+  
+  const launch = speedLaunches.find(l => l.id === id);
+  if (launch) {
+    launch.deleted = true;
+    saveLaunchesData();
+    filterLaunches();
+    
+    // Refresh weekly payments table to reflect this cancellation
+    renderRiderPayments();
+  }
+}
+
+// Filter lists and render dashboard/table
+function filterLaunches() {
+  const riderFilter = document.getElementById('filter-launch-rider').value;
+  const categoryFilter = document.getElementById('filter-launch-category').value;
+  const startDate = document.getElementById('filter-launch-start-date').value;
+  const endDate = document.getElementById('filter-launch-end-date').value;
+  const searchVal = document.getElementById('filter-launch-search').value.toLowerCase().trim();
+  
+  // Filter active and non-deleted rows
+  let filtered = speedLaunches.filter(l => {
+    // Motoboy Filter
+    if (riderFilter !== 'all' && l.riderName !== riderFilter) return false;
+    
+    // Category Filter
+    if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
+    
+    // Date Filters
+    if (!isLaunchInFilterPeriod(l, startDate, endDate)) return false;
+    
+    // Text Search
+    if (searchVal) {
+      const matchText = `${l.itemName} ${l.notes} ${l.riderName} ${l.category}`.toLowerCase();
+      if (!matchText.includes(searchVal)) return false;
+    }
+    
+    return true;
+  });
+  
+  // Render table
+  renderLaunchesTable(filtered);
+  
+  // Calculate metrics on the filtered subset (or all active if prefer)
+  // Let's calculate active totals (non-deleted launches) that match the dates currently set
+  const activeLaunches = speedLaunches.filter(l => !l.deleted && isLaunchInFilterPeriod(l, startDate, endDate));
+  
+  const totalConsumables = activeLaunches.filter(l => l.category === "Consumível").reduce((sum, l) => sum + l.total, 0);
+  const totalVouchers = activeLaunches.filter(l => l.category === "Vale").reduce((sum, l) => sum + l.total, 0);
+  const totalGeneral = totalConsumables + totalVouchers;
+  const countLaunches = activeLaunches.length;
+  
+  document.getElementById('lbl-total-consumables').innerText = `R$ ${totalConsumables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  document.getElementById('lbl-total-vouchers').innerText = `R$ ${totalVouchers.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  document.getElementById('lbl-total-general').innerText = `R$ ${totalGeneral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  document.getElementById('lbl-count-launches').innerText = countLaunches;
+}
+
+// Render the historical launches list in the table
+function renderLaunchesTable(dataList) {
+  const tbody = document.getElementById('launches-table-body');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  
+  if (dataList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 24px;" class="text-muted">Nenhum lançamento encontrado para os filtros selecionados.</td></tr>';
+    return;
+  }
+  
+  // Sort by date desc
+  const sorted = [...dataList].sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  sorted.forEach(l => {
+    const dateObj = new Date(l.date);
+    const dateStr = dateObj.toLocaleDateString('pt-BR');
+    
+    const row = document.createElement('tr');
+    if (l.deleted) {
+      row.style.opacity = '0.4';
+      row.style.textDecoration = 'line-through';
+    }
+    
+    row.innerHTML = `
+      <td>${dateStr}</td>
+      <td><strong>${escapeHtml(l.riderName)}</strong></td>
+      <td>
+        <span class="badge" style="background: ${l.category === 'Vale' ? 'rgba(0, 174, 239, 0.12)' : 'rgba(235, 38, 144, 0.12)'}; color: ${l.category === 'Vale' ? 'var(--accent-cyan)' : 'var(--primary)'}; padding: 3px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+          ${l.category}
+        </span>
+      </td>
+      <td>${escapeHtml(l.itemName)}</td>
+      <td>${l.qty}x</td>
+      <td><strong>R$ ${l.total.toFixed(2).replace('.', ',')}</strong></td>
+      <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(l.notes)}">${escapeHtml(l.notes) || '—'}</td>
+      <td>
+        <span style="font-weight: 600; font-size: 0.75rem; color: ${l.deleted ? 'var(--color-text-muted)' : 'var(--success)'};">
+          ${l.deleted ? 'Cancelado' : 'Ativo'}
+        </span>
+      </td>
+      <td>
+        ${l.deleted ? '—' : `<button class="btn btn-secondary btn-sm text-danger" onclick="cancelLaunch(${l.id})" style="padding: 3px 6px; border-radius: 4px; cursor: pointer; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);">Cancelar</button>`}
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// Date helper matching isOrderInFilterPeriod logic
+function isLaunchInFilterPeriod(launch, startVal, endVal) {
+  const launchDate = new Date(launch.date);
+  
+  if (!startVal && !endVal) {
+    // Check if in current week
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return launchDate >= monday && launchDate <= sunday;
+  }
+  
+  if (startVal) {
+    const parts = startVal.split('-');
+    const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+    if (launchDate < startDate) return false;
+  }
+  
+  if (endVal) {
+    const parts = endVal.split('-');
+    const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+    if (launchDate > endDate) return false;
+  }
+  
+  return true;
+}
+
+// Bind custom functions to window to make them available in onclick inline handlers
+window.isLaunchInFilterPeriod = isLaunchInFilterPeriod;
+window.initOwnerConsumables = initOwnerConsumables;
+window.filterLaunches = filterLaunches;
+window.onFormCategoryChange = onFormCategoryChange;
+window.onFormItemChange = onFormItemChange;
+window.promptCreateNewItem = promptCreateNewItem;
+window.updateLaunchTotalEstimate = updateLaunchTotalEstimate;
+window.submitNewLaunch = submitNewLaunch;
+window.cancelLaunch = cancelLaunch;

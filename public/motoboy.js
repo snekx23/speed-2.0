@@ -99,9 +99,33 @@ async function handleMotoLogin(e) {
   btn.innerText = 'Verificando...';
 
   if (!db) {
-    showLoginError('Serviço indisponível. Tente novamente.');
+    const idNum = rawId.replace('#', '').replace('MB-', '');
+    let offlineRider = {
+      id: `#MB-${idNum}`,
+      name: 'Carlos Oliveira',
+      status: 'Disponível',
+      vehicle: 'Honda CG 160 Fan',
+      plate: 'XYZ-9876',
+      phone: '(11) 99999-8888',
+      battery: 85
+    };
+    
+    if (idNum === '102') {
+      offlineRider.name = 'Julia Costa';
+    } else if (idNum === '103') {
+      offlineRider.name = 'Marcos Santos';
+    } else if (idNum === '104') {
+      offlineRider.name = 'Aline Dias';
+    } else if (idNum === '105') {
+      offlineRider.name = 'Lucas Souza';
+    }
+    
+    currentRider = offlineRider;
+    localStorage.setItem('speedMotoSession', JSON.stringify(offlineRider));
     btn.disabled = false;
     btn.innerText = 'Entrar';
+    showApp();
+    loadMyDeliveries();
     return;
   }
 
@@ -363,7 +387,10 @@ async function loadMyDeliveries() {
     </div>
   `;
 
-  if (!db || !currentRider) return;
+  if (!db || !currentRider) {
+    if (container) container.innerHTML = '<p class="pwa-empty-msg" style="text-align:center; padding: 20px;">Nenhuma tele ativa no momento (Servidor offline).</p>';
+    return;
+  }
 
   const { data, error } = await db
     .from('client_history')
@@ -869,6 +896,11 @@ function initRiderMap() {
   const mapEl = document.getElementById('pwa-map');
   if (!mapEl) return;
 
+  if (typeof L === 'undefined') {
+    mapEl.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--muted); font-size:0.85rem; padding: 20px; text-align:center;">Mapa indisponível offline (Sem conexão com Leaflet).</div>';
+    return;
+  }
+
   riderMap = L.map('pwa-map', { zoomControl: true, attributionControl: false }).setView([-23.55052, -46.633308], 14);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -886,7 +918,7 @@ function placeRiderMarker(lat, lng) {
   if (!riderMap) return;
 
   const iconHtml = `
-    <div style="width:22px;height:22px;background:#ff00aa;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(255,0,170,0.7);display:flex;align-items:center;justify-content:center;">
+    <div style="width:22px;height:22px;background:#eb2690;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(235,38,144,0.7);display:flex;align-items:center;justify-content:center;">
       <div style="width:6px;height:6px;background:#fff;border-radius:50%;"></div>
     </div>
   `;
@@ -938,7 +970,7 @@ function showPWAToast(msg) {
   }
 
   const toast = document.createElement('div');
-  toast.style.cssText = 'background:#181820;border-left:4px solid #ff00aa;border:1px solid #272732;border-left:4px solid #ff00aa;color:#f4f4f5;padding:14px 18px;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.4);font-size:0.9rem;font-weight:500;text-align:center;';
+  toast.style.cssText = 'background:#181820;border-left:4px solid #eb2690;border:1px solid #272732;border-left:4px solid #eb2690;color:#f4f4f5;padding:14px 18px;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.4);font-size:0.9rem;font-weight:500;text-align:center;';
   toast.innerText = msg;
   container.appendChild(toast);
 
@@ -1244,7 +1276,23 @@ async function loadWeeklyBalance() {
     }
   });
 
-  if (balanceEl) balanceEl.innerText = formatMoney(totalWeekly);
+  // Subtract current week active launches/discounts
+  const localLaunches = localStorage.getItem('speed_launches');
+  const allLaunches = localLaunches ? JSON.parse(localLaunches) : [];
+  
+  let totalDeductions = 0;
+  allLaunches.forEach(l => {
+    if (!l.deleted && currentRider && l.riderName === currentRider.name) {
+      const launchDate = new Date(l.date);
+      if (isDateInCurrentWeek(launchDate)) {
+        totalDeductions += l.total;
+      }
+    }
+  });
+
+  const netWeekly = totalWeekly - totalDeductions;
+
+  if (balanceEl) balanceEl.innerText = formatMoney(netWeekly);
 }
 
 // ─── MAP INTERACTION OVERLAYS ───────────────────────────────────────────────
@@ -1295,7 +1343,11 @@ async function loadReportsData() {
     `;
   }
 
-  if (!db || !currentRider) return;
+  if (!db || !currentRider) {
+    if (listContainer) listContainer.innerHTML = '<p class="pwa-empty-msg" style="text-align:center; padding: 20px;">Modo de simulação local ativo (sem Supabase).</p>';
+    renderReports(currentPeriod);
+    return;
+  }
 
   const { data, error } = await db
     .from('client_history')
@@ -1399,6 +1451,38 @@ function renderReports(period) {
     return false;
   });
 
+  // Load and filter launches (vouchers & consumables)
+  const localLaunches = localStorage.getItem('speed_launches');
+  const allLaunches = localLaunches ? JSON.parse(localLaunches) : [];
+  
+  const activeLaunches = allLaunches.filter(l => {
+    if (l.deleted) return false;
+    if (!currentRider || l.riderName !== currentRider.name) return false;
+    
+    const launchDate = new Date(l.date);
+    
+    // Date filter: startVal / endVal
+    if (startVal || endVal) {
+      if (startVal) {
+        const parts = startVal.split('-');
+        const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+        if (launchDate < startDate) return false;
+      }
+      if (endVal) {
+        const parts = endVal.split('-');
+        const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+        if (launchDate > endDate) return false;
+      }
+      return true;
+    }
+    
+    // Period filter: day, week, month
+    if (period === 'day') return isDateToday(launchDate);
+    if (period === 'week') return isDateInCurrentWeek(launchDate);
+    if (period === 'month') return isDateInCurrentMonth(launchDate);
+    return false;
+  });
+
   // Calculate totals
   let totalEarned = 0;
   filtered.forEach(order => {
@@ -1407,6 +1491,53 @@ function renderReports(period) {
 
   if (totalEarnedEl) totalEarnedEl.innerText = formatMoney(totalEarned);
   if (totalCountEl) totalCountEl.innerText = filtered.length;
+
+  // Render deductions
+  const deductionsListEl = document.getElementById('pwa-deductions-list');
+  const deductionsTotalEl = document.getElementById('pwa-deductions-total');
+  const netTotalEl = document.getElementById('pwa-net-total');
+  const explanationEl = document.getElementById('pwa-net-explanation');
+  
+  let totalDeductions = 0;
+  
+  if (deductionsListEl && deductionsTotalEl) {
+    if (activeLaunches.length === 0) {
+      deductionsListEl.innerHTML = '<p style="font-size: 0.78rem; color: var(--muted); text-align: center; margin: 10px 0;">Nenhum desconto lançado neste período.</p>';
+      deductionsTotalEl.innerText = 'R$ 0,00';
+    } else {
+      deductionsListEl.innerHTML = activeLaunches.map(l => {
+        totalDeductions += l.total;
+        const lDate = new Date(l.date);
+        const dateStr = lDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.82rem; padding: 4px 0;">
+            <div>
+              <span style="font-size: 0.72rem; color: var(--muted); display: block;">${dateStr} • ${l.category}</span>
+              <strong>${escapeHtml(l.itemName)}</strong> ${l.qty > 1 ? `<span style="font-size: 0.75rem; color: var(--muted);">(${l.qty}x)</span>` : ''}
+              ${l.notes ? `<p style="font-size: 0.72rem; color: var(--muted); margin-top: 2px; font-style: italic;">Obs: ${escapeHtml(l.notes)}</p>` : ''}
+            </div>
+            <strong style="color: var(--primary);">- ${formatMoney(l.total)}</strong>
+          </div>
+        `;
+      }).join('');
+      
+      deductionsTotalEl.innerText = `- ${formatMoney(totalDeductions)}`;
+    }
+  }
+  
+  const netTotal = totalEarned - totalDeductions;
+  if (netTotalEl) {
+    netTotalEl.innerText = formatMoney(netTotal);
+    if (netTotal < 0) {
+      netTotalEl.style.color = 'var(--primary)';
+    } else {
+      netTotalEl.style.color = '#10b981';
+    }
+  }
+  if (explanationEl) {
+    explanationEl.innerText = `Cálculo: Saldo Bruto (${formatMoney(totalEarned)}) - Descontos (${formatMoney(totalDeductions)}) = Saldo Líquido`;
+  }
 
   // Render items
   if (filtered.length === 0) {
@@ -1497,7 +1628,15 @@ async function loadSystemTeles() {
     </div>
   `;
 
-  if (!db) return;
+  if (!db) {
+    container.innerHTML = `
+      <div class="pwa-empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <p>Nenhuma tele pendente no sistema (offline).</p>
+      </div>
+    `;
+    return;
+  }
 
   try {
     const { data, error } = await db
@@ -1674,7 +1813,7 @@ function createRiderMessageBubble(msg, currentRole) {
   const alignStyle = isMe ? 'align-self: flex-end; align-items: flex-end;' : 'align-self: flex-start; align-items: flex-start;';
   
   const bubbleStyle = isMe 
-    ? 'background: linear-gradient(135deg, var(--primary), #d90090); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(255, 0, 170, 0.25);'
+    ? 'background: linear-gradient(135deg, var(--primary), #d90090); color: #ffffff; border-radius: 16px 16px 2px 16px; box-shadow: 0 4px 12px rgba(235, 38, 144, 0.25);'
     : 'background: var(--border); border: 1px solid var(--border); color: var(--text); border-radius: 16px 16px 16px 2px;';
   
   const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora';
