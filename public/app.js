@@ -139,6 +139,7 @@ let trackingPickupMarker = null;
 let trackingDestMarker = null;
 let trackingRouteLine = null;
 let trackingRealtimeChannel = null;
+let fleetRealtimeChannel = null;
 // Global support chat variables
 let activeChatClientEmail = null;
 let activeChatClientName = null;
@@ -179,7 +180,9 @@ async function fetchFleet() {
       bypassDistanceLimit: !!item.bypass_distance_limit,
       maxSimultaneousDeliveries: parseInt(item.max_simultaneous_deliveries) || 1,
       lat: item.lat,
-      lng: item.lng
+      lng: item.lng,
+      is_online: !!item.is_online,
+      current_status: item.current_status || 'available'
     }));
   } catch (err) {
     console.error("Error fetching fleet from Supabase:", err);
@@ -531,6 +534,10 @@ function handleLogout() {
 
 // Switching dashboard tab views
 async function switchDashboardTab(targetTab) {
+  if (targetTab !== 'owner-fleet-map') {
+    unsubscribeFleetRealtime();
+  }
+
   // Update Sidebar active items
   document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
     item.classList.remove('active');
@@ -560,6 +567,7 @@ async function switchDashboardTab(targetTab) {
   } else if (targetTab === 'owner-fleet-map') {
     await fetchFleet();
     initOwnerFleetMap();
+    subscribeFleetRealtime();
   } else if (targetTab === 'owner-teles') {
     await loadTelesManagement();
   } else if (targetTab === 'owner-fleet') {
@@ -1341,8 +1349,8 @@ async function submitDeliveryRequest(event) {
   // Format cargo name
   const cargoStr = cargoType === 'lanche' ? '🍔 Lanches e Bebidas' : (cargoType === 'pizza' ? '🍕 Pizza Família' : (cargoType === 'doce' ? '🍩 Doces e Sobremesas' : '📄 Papelada / Documentos'));
 
-  let pickupLat = -23.55052;
-  let pickupLng = -46.633308;
+  let pickupLat = -29.8389;
+  let pickupLng = -51.1439;
   if (restaurantMarker) {
     const latlng = restaurantMarker.getLatLng();
     pickupLat = latlng.lat;
@@ -1806,7 +1814,7 @@ function initOwnerFleetMap() {
     if (ownerFleetMap.getCenter) return;
   }
 
-  let centerCoords = [-23.55052, -46.633308];
+  let centerCoords = [-29.8389, -51.1439];
 
   loadGoogleMapsAPI(() => {
     const latLng = new google.maps.LatLng(centerCoords[0], centerCoords[1]);
@@ -1869,34 +1877,28 @@ function renderMapMarkers(centerCoords) {
   );
   window.ownerFleetMarkers.push(centralMarker);
 
-  const offsets = [
-    [0.004, -0.006],
-    [0.008, 0.012],
-    [-0.005, 0.009],
-    [-0.012, -0.004],
-    [0.003, -0.015],
-    [-0.009, 0.005]
-  ];
-
-  const ridersLocations = mockData.fleet.map((rider, index) => ({
-    id: rider.id,
-    name: rider.name,
-    vehicle: rider.vehicle,
-    plate: rider.plate,
-    status: rider.status,
-    statusColor: rider.status === 'Em Descanso' ? '#8e8e9f' : (rider.statusClass === 'status-progress' ? '#eb2690' : '#01afec'),
-    offset: offsets[index % offsets.length]
-  }));
+  const ridersLocations = mockData.fleet
+    .filter(rider => rider.lat !== null && rider.lat !== undefined && rider.lng !== null && rider.lng !== undefined && rider.lat !== 0 && rider.lng !== 0 && rider.is_online === true)
+    .map(rider => {
+      const pinColor = rider.current_status === 'busy' ? '#f97316' : '#22c55e'; // Green for available, Orange for busy
+      return {
+        id: rider.id,
+        name: rider.name,
+        vehicle: rider.vehicle,
+        plate: rider.plate,
+        status: rider.status,
+        statusColor: pinColor,
+        lat: parseFloat(rider.lat),
+        lng: parseFloat(rider.lng)
+      };
+    });
 
   ridersLocations.forEach(rider => {
-    const mockRider = mockData.fleet.find(r => r.name === rider.name);
+    const mockRider = mockData.fleet.find(r => r.id === rider.id);
     const currentStatus = mockRider ? mockRider.status : rider.status;
-    const currentStatusColor = mockRider 
-      ? (mockRider.status === 'Em Descanso' ? '#8e8e9f' : (mockRider.statusClass === 'status-progress' ? '#eb2690' : '#01afec')) 
-      : rider.statusColor;
+    const currentStatusColor = rider.statusColor;
 
-    const riderCoords = [centerCoords[0] + rider.offset[0], centerCoords[1] + rider.offset[1]];
-    const riderLatLng = new google.maps.LatLng(riderCoords[0], riderCoords[1]);
+    const riderLatLng = new google.maps.LatLng(rider.lat, rider.lng);
     const isPulsing = currentStatus !== 'Em Descanso';
     const markerHtml = `
       <div class="custom-map-marker" style="background-color: ${currentStatusColor}; box-shadow: 0 0 10px ${currentStatusColor};">
@@ -1997,6 +1999,34 @@ function renderMapMarkers(centerCoords) {
       }, 150);
     }
   });
+}
+
+function subscribeFleetRealtime() {
+  if (!supabaseClient) return;
+  if (fleetRealtimeChannel) return;
+
+  fleetRealtimeChannel = supabaseClient.channel('realtime-fleet-map')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'fleet'
+    }, async (payload) => {
+      await fetchFleet();
+      const mapContainer = document.getElementById('owner-fleet-map');
+      const mapTab = document.getElementById('tab-owner-fleet-map');
+      if (mapContainer && mapTab && mapTab.classList.contains('active') && ownerFleetMap) {
+        const centerCoords = [-29.8389, -51.1439];
+        renderMapMarkers(centerCoords);
+      }
+    })
+    .subscribe();
+}
+
+function unsubscribeFleetRealtime() {
+  if (supabaseClient && fleetRealtimeChannel) {
+    supabaseClient.removeChannel(fleetRealtimeChannel);
+    fleetRealtimeChannel = null;
+  }
 }
 
 async function handlePopupRemoveTele(deliveryId, riderId) {
@@ -3713,7 +3743,7 @@ let requestDeliveryMap = null;
 let requestDeliveryMarker = null;
 let restaurantMarker = null;
 let requestDeliveryRouteLine = null;
-let requestDeliveryCenterCoords = [-23.55052, -46.633308]; // Fallback coordinates (São Paulo)
+let requestDeliveryCenterCoords = [-29.8389, -51.1439]; // Fallback coordinates (Sapucaia do Sul)
 
 function initRequestDeliveryMap() {
   const mapContainer = document.getElementById('request-delivery-map');
@@ -3926,8 +3956,8 @@ async function startRealtimeTracking(order) {
   }
 
   // Determine coordinates
-  const pickupLat = parseFloat(order.pickup_lat) || -23.55052;
-  const pickupLng = parseFloat(order.pickup_lng) || -46.633308;
+  const pickupLat = parseFloat(order.pickup_lat) || -29.8389;
+  const pickupLng = parseFloat(order.pickup_lng) || -51.1439;
   const destLat = parseFloat(order.dest_lat) || -23.551;
   const destLng = parseFloat(order.dest_lng) || -46.634;
 

@@ -344,7 +344,12 @@ async function toggleConnectionState() {
     
     const { error } = await db
       .from('fleet')
-      .update({ status: 'Disponível', status_class: 'status-success' })
+      .update({ 
+        status: 'Disponível', 
+        status_class: 'status-success',
+        is_online: true,
+        current_status: 'available'
+      })
       .eq('id', currentRider.id);
 
     btn.disabled = false;
@@ -389,7 +394,12 @@ async function toggleConnectionState() {
     // Disconnect -> change status to 'Em Descanso'
     const { error } = await db
       .from('fleet')
-      .update({ status: 'Em Descanso', status_class: 'status-warning' })
+      .update({ 
+        status: 'Em Descanso', 
+        status_class: 'status-warning',
+        is_online: false,
+        current_status: 'available'
+      })
       .eq('id', currentRider.id);
 
     btn.disabled = false;
@@ -632,7 +642,11 @@ async function confirmPickup(deliveryId) {
   // Update fleet rider status
   await db
     .from('fleet')
-    .update({ status: 'Em rota de entrega', status_class: 'status-progress' })
+    .update({ 
+      status: 'Em rota de entrega', 
+      status_class: 'status-progress',
+      current_status: 'busy'
+    })
     .eq('name', currentRider.name);
 
   currentRider.status = 'Em rota de entrega';
@@ -710,7 +724,12 @@ async function confirmDelivery(deliveryId) {
 
   await db
     .from('fleet')
-    .update({ status: 'Disponível', status_class: 'status-success', delivery: 'Nenhuma' })
+    .update({ 
+      status: 'Disponível', 
+      status_class: 'status-success', 
+      delivery: 'Nenhuma',
+      current_status: 'available'
+    })
     .eq('name', currentRider.name);
 
   currentRider.status = 'Disponível';
@@ -903,8 +922,8 @@ async function acceptSelectedPendingTele() {
   
   try {
     // 1. Calculate distance from rider to pickup point (restaurant)
-    const pickupLat = parseFloat(tele.pickup_lat) || -23.55052;
-    const pickupLng = parseFloat(tele.pickup_lng) || -46.633308;
+    const pickupLat = parseFloat(tele.pickup_lat) || -29.8389;
+    const pickupLng = parseFloat(tele.pickup_lng) || -51.1439;
     const distToPickup = calculateHaversineDistance(lastPosition.lat, lastPosition.lng, pickupLat, pickupLng);
 
     // 2. Insert bid to delivery_bids table
@@ -978,7 +997,7 @@ function initRiderMap() {
   if (!mapEl) return;
 
   loadGoogleMapsAPI(() => {
-    const defaultCenter = new google.maps.LatLng(-23.55052, -46.633308);
+    const defaultCenter = new google.maps.LatLng(-29.8389, -51.1439);
     riderMap = new google.maps.Map(mapEl, {
       center: defaultCenter,
       zoom: 14,
